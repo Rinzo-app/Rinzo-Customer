@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/lib/auth";
@@ -48,14 +49,20 @@ export default function LoginScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="water" size={48} color={Colors.primary} />
+        <View style={styles.logoSection}>
+          <LinearGradient
+            colors={[Colors.primaryMuted, "transparent"]}
+            style={styles.logoBg}
+          />
+          <View style={styles.iconContainer}>
+            <Ionicons name="water" size={40} color={Colors.primary} />
+          </View>
+          <Text style={styles.title}>Saaf</Text>
+          <Text style={styles.subtitle}>Premium laundry, at your doorstep</Text>
         </View>
-        <Text style={styles.title}>Saaf</Text>
-        <Text style={styles.subtitle}>Clean clothes, delivered fresh</Text>
 
         <View style={styles.inputSection}>
-          <Text style={styles.label}>Enter your phone number</Text>
+          <Text style={styles.label}>Phone Number</Text>
           <View style={styles.phoneRow}>
             <View style={styles.countryCode}>
               <Text style={styles.countryCodeText}>+91</Text>
@@ -71,7 +78,6 @@ export default function LoginScreen() {
               autoFocus
             />
           </View>
-          <Text style={styles.hint}>We'll send you a 6-digit verification code</Text>
         </View>
 
         <Pressable
@@ -84,15 +90,20 @@ export default function LoginScreen() {
           disabled={phone.length < 10 || loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.textInverse} />
           ) : (
-            <Text style={styles.buttonText}>Get OTP</Text>
+            <Text style={styles.buttonText}>Continue</Text>
           )}
         </Pressable>
 
-        <Text style={styles.testNote}>
-          Test: 1234567890 / OTP: 123456
+        <Text style={styles.hint}>
+          We'll send you a 6-digit code to verify
         </Text>
+
+        <View style={styles.testCard}>
+          <Ionicons name="flask-outline" size={14} color={Colors.textMuted} />
+          <Text style={styles.testNote}>Test: 1234567890 / OTP: 123456</Text>
+        </View>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
@@ -111,105 +122,134 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     justifyContent: "center",
   },
+  logoSection: {
+    alignItems: "center",
+    marginBottom: 48,
+    position: "relative",
+  },
+  logoBg: {
+    position: "absolute",
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    top: -30,
+  },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: "#E0F7FA",
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: Colors.primaryMuted,
+    borderWidth: 1,
+    borderColor: Colors.borderAccent,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
   },
   title: {
-    fontSize: 36,
+    fontSize: 38,
     fontFamily: "NunitoSans_800ExtraBold",
     color: Colors.text,
-    marginBottom: 4,
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: "NunitoSans_400Regular",
     color: Colors.textSecondary,
-    marginBottom: 40,
+    marginTop: 4,
   },
   inputSection: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "NunitoSans_600SemiBold",
-    color: Colors.text,
+    color: Colors.textSecondary,
     marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   phoneRow: {
     flexDirection: "row",
     gap: 10,
   },
   countryCode: {
-    height: 52,
-    width: 64,
+    height: 54,
+    width: 68,
     borderRadius: 14,
     backgroundColor: Colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
     justifyContent: "center",
     alignItems: "center",
   },
   countryCodeText: {
     fontSize: 16,
-    fontFamily: "NunitoSans_600SemiBold",
+    fontFamily: "NunitoSans_700Bold",
     color: Colors.text,
   },
   input: {
     flex: 1,
-    height: 52,
+    height: 54,
     borderRadius: 14,
     backgroundColor: Colors.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 16,
-    fontSize: 18,
-    fontFamily: "NunitoSans_600SemiBold",
+    fontSize: 20,
+    fontFamily: "NunitoSans_700Bold",
     color: Colors.text,
-    letterSpacing: 2,
-  },
-  hint: {
-    fontSize: 12,
-    fontFamily: "NunitoSans_400Regular",
-    color: Colors.textMuted,
-    marginTop: 8,
+    letterSpacing: 3,
   },
   button: {
-    height: 52,
+    height: 54,
     borderRadius: 14,
     backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
   buttonDisabled: {
-    backgroundColor: Colors.textMuted,
+    backgroundColor: Colors.border,
   },
   buttonPressed: {
-    opacity: 0.9,
+    opacity: 0.85,
     transform: [{ scale: 0.98 }],
   },
   buttonText: {
     fontSize: 16,
     fontFamily: "NunitoSans_700Bold",
-    color: "#fff",
+    color: Colors.textInverse,
+  },
+  hint: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.textMuted,
+    textAlign: "center",
+    marginTop: 14,
+  },
+  testCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    alignSelf: "center",
   },
   testNote: {
     fontSize: 12,
     fontFamily: "NunitoSans_400Regular",
     color: Colors.textMuted,
-    textAlign: "center",
-    marginTop: 16,
   },
   footer: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
   },
   footerText: {
     fontSize: 12,

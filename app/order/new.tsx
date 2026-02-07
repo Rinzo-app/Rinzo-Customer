@@ -19,12 +19,12 @@ import Colors from "@/constants/colors";
 import type { Address } from "@shared/schema";
 
 const PICKUP_SLOTS = [
-  "8:00 AM - 10:00 AM",
-  "10:00 AM - 12:00 PM",
-  "12:00 PM - 2:00 PM",
-  "2:00 PM - 4:00 PM",
-  "4:00 PM - 6:00 PM",
-  "6:00 PM - 8:00 PM",
+  "8 - 10 AM",
+  "10 AM - 12 PM",
+  "12 - 2 PM",
+  "2 - 4 PM",
+  "4 - 6 PM",
+  "6 - 8 PM",
 ];
 
 function getNextDays(count: number) {
@@ -105,7 +105,7 @@ export default function NewOrderScreen() {
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 4) }]}>
         <Pressable style={styles.topBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.topTitle}>Schedule Pickup</Text>
         <View style={styles.topBtn} />
@@ -118,11 +118,11 @@ export default function NewOrderScreen() {
             <ActivityIndicator color={Colors.primary} />
           ) : !addressesQuery.data || addressesQuery.data.length === 0 ? (
             <Pressable style={styles.addAddressBtn} onPress={() => router.push("/address/manage")}>
-              <Ionicons name="add-circle-outline" size={20} color={Colors.primary} />
-              <Text style={styles.addAddressText}>Add Address</Text>
+              <Ionicons name="add-circle-outline" size={18} color={Colors.primary} />
+              <Text style={styles.addAddressText}>Add an Address</Text>
             </Pressable>
           ) : (
-            <View>
+            <View style={styles.addressList}>
               {addressesQuery.data.map((addr) => (
                 <Pressable
                   key={addr.id}
@@ -131,7 +131,7 @@ export default function NewOrderScreen() {
                 >
                   <Ionicons
                     name={activeAddressId === addr.id ? "radio-button-on" : "radio-button-off"}
-                    size={20}
+                    size={18}
                     color={activeAddressId === addr.id ? Colors.primary : Colors.textMuted}
                   />
                   <View style={styles.addressInfo}>
@@ -145,7 +145,7 @@ export default function NewOrderScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Pickup Date</Text>
+          <Text style={styles.sectionLabel}>Pick a Date</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.daysRow}>
             {days.map((d, i) => (
               <Pressable
@@ -155,14 +155,14 @@ export default function NewOrderScreen() {
               >
                 <Text style={[styles.dayLabel, selectedDate === i && styles.dayLabelActive]}>{d.day}</Text>
                 <Text style={[styles.dayNum, selectedDate === i && styles.dayNumActive]}>{d.num}</Text>
-                {i === 0 && <Text style={[styles.dayToday, selectedDate === i && styles.dayLabelActive]}>Today</Text>}
+                {i === 0 && <Text style={[styles.dayToday, selectedDate === i && styles.dayTodayActive]}>Today</Text>}
               </Pressable>
             ))}
           </ScrollView>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Pickup Time</Text>
+          <Text style={styles.sectionLabel}>Pick a Time</Text>
           <View style={styles.slotsGrid}>
             {PICKUP_SLOTS.map((slot) => (
               <Pressable
@@ -173,11 +173,6 @@ export default function NewOrderScreen() {
                   setSelectedSlot(slot);
                 }}
               >
-                <Ionicons
-                  name="time-outline"
-                  size={14}
-                  color={selectedSlot === slot ? "#fff" : Colors.textSecondary}
-                />
                 <Text style={[styles.slotText, selectedSlot === slot && styles.slotTextActive]}>{slot}</Text>
               </Pressable>
             ))}
@@ -185,33 +180,33 @@ export default function NewOrderScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Order Summary</Text>
+          <Text style={styles.sectionLabel}>Summary</Text>
           <View style={styles.summaryCard}>
             {parsedItems.map((item: any, i: number) => (
               <View key={i} style={styles.summaryRow}>
-                <Text style={styles.summaryName}>{item.name} x{item.quantity}</Text>
+                <Text style={styles.summaryName}>{item.name}</Text>
+                <Text style={styles.summaryQty}>x{item.quantity}</Text>
                 <Text style={styles.summaryPrice}>{"\u20B9"}{item.price * item.quantity}</Text>
               </View>
             ))}
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>Total ({itemCount} items)</Text>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalCount}>{itemCount} items</Text>
               <Text style={styles.totalPrice}>{"\u20B9"}{total}</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.paymentSection}>
-          <View style={styles.paymentRow}>
-            <Ionicons name="cash-outline" size={20} color={Colors.success} />
+        <View style={styles.paymentCard}>
+          <View style={styles.paymentLeft}>
+            <Ionicons name="cash-outline" size={18} color={Colors.success} />
             <Text style={styles.paymentText}>Cash on Delivery</Text>
-            <View style={styles.paymentCheck}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-            </View>
           </View>
+          <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
         </View>
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 130 }} />
       </ScrollView>
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
@@ -220,16 +215,16 @@ export default function NewOrderScreen() {
           <Text style={styles.bottomTotal}>{"\u20B9"}{total}</Text>
         </View>
         <Pressable
-          style={({ pressed }) => [styles.orderBtn, pressed && { opacity: 0.9 }, orderMutation.isPending && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.orderBtn, pressed && { opacity: 0.85 }, orderMutation.isPending && { opacity: 0.6 }]}
           onPress={handlePlaceOrder}
           disabled={orderMutation.isPending}
         >
           {orderMutation.isPending ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.textInverse} />
           ) : (
             <>
               <Text style={styles.orderBtnText}>Place Order</Text>
-              <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              <Ionicons name="checkmark-circle" size={16} color={Colors.textInverse} />
             </>
           )}
         </Pressable>
@@ -244,99 +239,109 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: Colors.border,
   },
   topBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   topTitle: { flex: 1, fontSize: 17, fontFamily: "NunitoSans_700Bold", color: Colors.text, textAlign: "center" },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
-  section: { marginBottom: 20 },
-  sectionLabel: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text, marginBottom: 10 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
+  section: { marginBottom: 24 },
+  sectionLabel: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.textSecondary,
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
   addAddressBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderAccent,
     borderStyle: "dashed",
+    backgroundColor: Colors.primaryMuted,
   },
   addAddressText: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary },
+  addressList: { gap: 8 },
   addressCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    marginBottom: 8,
-  },
-  addressSelected: { borderColor: Colors.primary, backgroundColor: "#E0F7FA" },
-  addressInfo: { flex: 1 },
-  addressLabel: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text },
-  addressLine: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
-  daysRow: { gap: 8 },
-  dayChip: {
-    width: 56,
-    height: 72,
+    padding: 14,
     borderRadius: 14,
     backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+  },
+  addressSelected: { borderColor: Colors.primary, backgroundColor: Colors.primaryMuted },
+  addressInfo: { flex: 1 },
+  addressLabel: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  addressLine: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginTop: 2 },
+  daysRow: { gap: 8 },
+  dayChip: {
+    width: 58,
+    height: 74,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: "center",
     alignItems: "center",
   },
   dayChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   dayLabel: { fontSize: 11, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
-  dayLabelActive: { color: "#fff" },
-  dayNum: { fontSize: 18, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
-  dayNumActive: { color: "#fff" },
-  dayToday: { fontSize: 9, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary },
+  dayLabelActive: { color: Colors.textInverse },
+  dayNum: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text, marginVertical: 1 },
+  dayNumActive: { color: Colors.textInverse },
+  dayToday: { fontSize: 9, fontFamily: "NunitoSans_700Bold", color: Colors.primary },
+  dayTodayActive: { color: Colors.textInverse },
   slotsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   slotChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   slotChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   slotText: { fontSize: 12, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
-  slotTextActive: { color: "#fff" },
+  slotTextActive: { color: Colors.textInverse },
   summaryCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
-  summaryName: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
-  summaryPrice: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
-  divider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 8 },
-  totalLabel: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
-  totalPrice: { fontSize: 18, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
-  paymentSection: {
+  summaryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 5 },
+  summaryName: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  summaryQty: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textMuted, marginRight: 12 },
+  summaryPrice: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text, minWidth: 50, textAlign: "right" },
+  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
+  totalLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  totalCount: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginRight: 12 },
+  totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
+  paymentCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: Colors.surface,
     borderRadius: 14,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     marginBottom: 20,
   },
-  paymentRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  paymentText: { flex: 1, fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
-  paymentCheck: {},
+  paymentLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  paymentText: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -345,22 +350,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
   },
   bottomInfo: { flex: 1 },
   bottomLabel: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
-  bottomTotal: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  bottomTotal: { fontSize: 22, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
   orderBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: Colors.accent,
-    paddingHorizontal: 24,
+    paddingHorizontal: 26,
     paddingVertical: 14,
     borderRadius: 12,
   },
-  orderBtnText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: "#fff" },
+  orderBtnText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
 });

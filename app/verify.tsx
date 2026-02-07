@@ -80,11 +80,11 @@ export default function VerifyScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
       <Pressable style={styles.backBtn} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <Ionicons name="chevron-back" size={24} color={Colors.text} />
       </Pressable>
 
       <View style={styles.content}>
-        <Text style={styles.title}>Verify OTP</Text>
+        <Text style={styles.title}>Verify</Text>
         <Text style={styles.subtitle}>
           Enter the 6-digit code sent to{"\n"}
           <Text style={styles.phone}>{phone}</Text>
@@ -116,7 +116,7 @@ export default function VerifyScreen() {
 
         <Pressable style={styles.resendBtn} onPress={handleResend} disabled={resending}>
           <Text style={styles.resendText}>
-            {resending ? "Sending..." : "Didn't receive? Resend OTP"}
+            {resending ? "Sending..." : "Didn't receive? Resend"}
           </Text>
         </Pressable>
       </View>
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 28,
     paddingTop: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: "NunitoSans_800ExtraBold",
     color: Colors.text,
     marginBottom: 8,
@@ -153,33 +153,33 @@ const styles = StyleSheet.create({
     fontFamily: "NunitoSans_400Regular",
     color: Colors.textSecondary,
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 36,
   },
   phone: {
     fontFamily: "NunitoSans_700Bold",
-    color: Colors.text,
+    color: Colors.primary,
   },
   otpRow: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 10,
-    marginBottom: 32,
+    marginBottom: 36,
   },
   otpInput: {
     width: 48,
-    height: 56,
+    height: 58,
     borderRadius: 14,
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.border,
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: "NunitoSans_700Bold",
     textAlign: "center",
     color: Colors.text,
   },
   otpInputFilled: {
     borderColor: Colors.primary,
-    backgroundColor: "#E0F7FA",
+    backgroundColor: Colors.primaryMuted,
   },
   loadingRow: {
     flexDirection: "row",

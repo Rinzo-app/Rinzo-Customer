@@ -15,20 +15,27 @@ import {
   NunitoSans_800ExtraBold,
 } from "@expo-google-fonts/nunito-sans";
 import { StatusBar } from "expo-status-bar";
+import Colors from "@/constants/colors";
 
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false, headerBackTitle: "Back" }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        headerBackTitle: "Back",
+        contentStyle: { backgroundColor: Colors.background },
+      }}
+    >
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="verify" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="shop/[id]" options={{ headerShown: false, animation: "slide_from_right" }} />
-      <Stack.Screen name="order/new" options={{ headerShown: false, animation: "slide_from_right" }} />
-      <Stack.Screen name="order/[id]" options={{ headerShown: false, animation: "slide_from_right" }} />
-      <Stack.Screen name="address/manage" options={{ headerShown: false, animation: "slide_from_bottom" }} />
+      <Stack.Screen name="shop/[id]" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="order/new" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="order/[id]" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="address/manage" options={{ animation: "slide_from_bottom" }} />
     </Stack>
   );
 }
@@ -52,10 +59,10 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
           <KeyboardProvider>
             <AuthProvider>
-              <StatusBar style="dark" />
+              <StatusBar style="light" />
               <RootLayoutNav />
             </AuthProvider>
           </KeyboardProvider>

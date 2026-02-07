@@ -60,10 +60,12 @@ export default function ProfileScreen() {
         <Text style={styles.title}>Profile</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} contentInsetAdjustmentBehavior="automatic">
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.profileCard}>
-          <View style={styles.avatarCircle}>
-            <Ionicons name="person" size={32} color={Colors.primary} />
+          <View style={styles.avatarRing}>
+            <View style={styles.avatarCircle}>
+              <Ionicons name="person" size={30} color={Colors.primary} />
+            </View>
           </View>
           {editingName ? (
             <View style={styles.nameEditRow}>
@@ -76,16 +78,16 @@ export default function ProfileScreen() {
                 autoFocus
               />
               <Pressable style={styles.saveBtn} onPress={handleSaveName} disabled={saving}>
-                <Ionicons name="checkmark" size={20} color="#fff" />
+                <Ionicons name="checkmark" size={18} color={Colors.textInverse} />
               </Pressable>
               <Pressable style={styles.cancelBtn} onPress={() => { setEditingName(false); setName(customer?.name || ""); }}>
-                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+                <Ionicons name="close" size={18} color={Colors.textSecondary} />
               </Pressable>
             </View>
           ) : (
             <Pressable style={styles.nameRow} onPress={() => setEditingName(true)}>
               <Text style={styles.profileName}>{customer?.name || "Set your name"}</Text>
-              <Ionicons name="pencil-outline" size={16} color={Colors.textMuted} />
+              <Ionicons name="pencil-outline" size={14} color={Colors.textMuted} />
             </Pressable>
           )}
           <Text style={styles.profilePhone}>{customer?.phone}</Text>
@@ -99,23 +101,26 @@ export default function ProfileScreen() {
           />
           <MenuItem
             icon="heart-outline"
-            label={`Favorite Shops${favsQuery.data ? ` (${favsQuery.data.length})` : ""}`}
+            label={`Favorites${favsQuery.data ? ` (${favsQuery.data.length})` : ""}`}
             onPress={() => {}}
+            showDivider
           />
           <MenuItem
             icon="help-circle-outline"
             label="Help & Support"
             onPress={() => {}}
+            showDivider
           />
           <MenuItem
             icon="information-circle-outline"
             label="About Saaf"
             onPress={() => {}}
+            isLast
           />
         </View>
 
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+          <Ionicons name="log-out-outline" size={18} color={Colors.error} />
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
 
@@ -125,38 +130,58 @@ export default function ProfileScreen() {
   );
 }
 
-function MenuItem({ icon, label, onPress }: { icon: string; label: string; onPress: () => void }) {
+function MenuItem({ icon, label, onPress, showDivider, isLast }: {
+  icon: string; label: string; onPress: () => void; showDivider?: boolean; isLast?: boolean;
+}) {
   return (
-    <Pressable style={({ pressed }) => [styles.menuItem, pressed && { opacity: 0.7 }]} onPress={onPress}>
-      <Ionicons name={icon as any} size={20} color={Colors.text} />
+    <Pressable
+      style={({ pressed }) => [
+        styles.menuItem,
+        pressed && { backgroundColor: Colors.surfaceElevated },
+        !isLast && styles.menuDivider,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.menuIconWrap}>
+        <Ionicons name={icon as any} size={18} color={Colors.textSecondary} />
+      </View>
       <Text style={styles.menuLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+      <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  titleBar: { paddingHorizontal: 20, paddingBottom: 12, paddingTop: 8 },
-  title: { fontSize: 24, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  titleBar: { paddingHorizontal: 24, paddingBottom: 16, paddingTop: 12 },
+  title: { fontSize: 26, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 120 },
   profileCard: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     alignItems: "center",
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
-  avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#E0F7FA",
+  avatarRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 2,
+    borderColor: Colors.borderAccent,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  avatarCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primaryMuted,
+    justifyContent: "center",
+    alignItems: "center",
   },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   profileName: { fontSize: 20, fontFamily: "NunitoSans_700Bold", color: Colors.text },
@@ -166,7 +191,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderRadius: 10,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surfaceElevated,
     paddingHorizontal: 12,
     fontSize: 16,
     fontFamily: "NunitoSans_600SemiBold",
@@ -175,26 +200,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   saveBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
   },
   cancelBtn: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
-    backgroundColor: Colors.borderLight,
+    backgroundColor: Colors.surfaceElevated,
     justifyContent: "center",
     alignItems: "center",
   },
   section: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     marginBottom: 20,
     overflow: "hidden",
   },
@@ -202,10 +227,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 15,
     gap: 12,
+  },
+  menuDivider: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
+  },
+  menuIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceElevated,
+    justifyContent: "center",
+    alignItems: "center",
   },
   menuLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
   logoutBtn: {
@@ -216,7 +251,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: Colors.errorLight,
     borderRadius: 14,
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(248, 113, 113, 0.2)",
+    marginBottom: 20,
   },
   logoutText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.error },
   version: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, textAlign: "center" },

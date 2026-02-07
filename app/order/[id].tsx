@@ -18,8 +18,8 @@ const STATUS_STEPS = [
   { key: "placed", label: "Order Placed", icon: "checkmark-circle" },
   { key: "confirmed", label: "Confirmed", icon: "checkmark-done-circle" },
   { key: "picked_up", label: "Picked Up", icon: "bicycle" },
-  { key: "washing", label: "Washing", icon: "water" },
-  { key: "ready", label: "Ready for Delivery", icon: "shirt" },
+  { key: "washing", label: "In Progress", icon: "water" },
+  { key: "ready", label: "Ready", icon: "shirt" },
   { key: "delivered", label: "Delivered", icon: "home" },
 ];
 
@@ -63,7 +63,7 @@ export default function OrderDetailScreen() {
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 4) }]}>
         <Pressable style={styles.topBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.topTitle}>Order Details</Text>
         <View style={styles.topBtn} />
@@ -71,41 +71,51 @@ export default function OrderDetailScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.shopCard}>
-          <Text style={styles.shopName}>{order.shopName}</Text>
-          <Text style={styles.orderId}>Order #{order.id.slice(0, 8)}</Text>
+          <View>
+            <Text style={styles.shopName}>{order.shopName}</Text>
+            <Text style={styles.orderId}>#{order.id.slice(0, 8).toUpperCase()}</Text>
+          </View>
           <Text style={styles.orderDate}>
             {new Date(order.createdAt).toLocaleDateString("en-IN", {
-              day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
+              day: "numeric", month: "short", year: "numeric",
             })}
           </Text>
         </View>
 
         {isCancelled ? (
           <View style={styles.cancelledCard}>
-            <Ionicons name="close-circle" size={32} color={Colors.error} />
+            <Ionicons name="close-circle" size={28} color={Colors.error} />
             <Text style={styles.cancelledText}>Order Cancelled</Text>
           </View>
         ) : (
           <View style={styles.trackingCard}>
-            <Text style={styles.sectionLabel}>Order Status</Text>
+            <Text style={styles.trackLabel}>Tracking</Text>
             {STATUS_STEPS.map((step, i) => {
               const isCompleted = i <= currentStep;
               const isCurrent = i === currentStep;
               return (
                 <View key={step.key} style={styles.stepRow}>
                   <View style={styles.stepIndicator}>
-                    <View style={[styles.stepDot, isCompleted && styles.stepDotActive, isCurrent && styles.stepDotCurrent]}>
+                    <View style={[
+                      styles.stepDot,
+                      isCompleted && styles.stepDotActive,
+                      isCurrent && styles.stepDotCurrent,
+                    ]}>
                       <Ionicons
                         name={step.icon as any}
-                        size={16}
-                        color={isCompleted ? "#fff" : Colors.textMuted}
+                        size={14}
+                        color={isCompleted ? Colors.textInverse : Colors.textMuted}
                       />
                     </View>
                     {i < STATUS_STEPS.length - 1 && (
                       <View style={[styles.stepLine, isCompleted && styles.stepLineActive]} />
                     )}
                   </View>
-                  <Text style={[styles.stepLabel, isCompleted && styles.stepLabelActive, isCurrent && styles.stepLabelCurrent]}>
+                  <Text style={[
+                    styles.stepLabel,
+                    isCompleted && styles.stepLabelActive,
+                    isCurrent && styles.stepLabelCurrent,
+                  ]}>
                     {step.label}
                   </Text>
                 </View>
@@ -115,34 +125,25 @@ export default function OrderDetailScreen() {
         )}
 
         <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>Pickup Details</Text>
+          <Text style={styles.detailHeading}>Pickup</Text>
           <View style={styles.detailCard}>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
-              <Text style={styles.detailValue}>{order.pickupDate}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-              <Text style={styles.detailValue}>{order.pickupSlot}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="cash-outline" size={16} color={Colors.textSecondary} />
-              <Text style={styles.detailValue}>Cash on Delivery</Text>
-            </View>
+            <DetailRow icon="calendar-outline" value={order.pickupDate} />
+            <DetailRow icon="time-outline" value={order.pickupSlot} />
+            <DetailRow icon="cash-outline" value="Cash on Delivery" />
           </View>
         </View>
 
         <View style={styles.detailSection}>
-          <Text style={styles.sectionLabel}>Items</Text>
+          <Text style={styles.detailHeading}>Items</Text>
           <View style={styles.detailCard}>
             {items.map((item: any, i: number) => (
-              <View key={i} style={styles.itemRow}>
+              <View key={i} style={[styles.itemRow, i < items.length - 1 && styles.itemBorder]}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemQty}>x{item.quantity}</Text>
                 <Text style={styles.itemPrice}>{"\u20B9"}{item.price * item.quantity}</Text>
               </View>
             ))}
-            <View style={styles.divider} />
+            <View style={styles.totalDivider} />
             <View style={styles.itemRow}>
               <Text style={styles.totalLabel}>Total</Text>
               <Text style={styles.totalPrice}>{"\u20B9"}{order.total}</Text>
@@ -152,7 +153,7 @@ export default function OrderDetailScreen() {
 
         {(order.status === "delivered" || order.status === "cancelled") && (
           <Pressable
-            style={styles.reorderBigBtn}
+            style={({ pressed }) => [styles.reorderBigBtn, pressed && { opacity: 0.85 }]}
             onPress={() => {
               router.push({
                 pathname: "/order/new",
@@ -160,13 +161,24 @@ export default function OrderDetailScreen() {
               });
             }}
           >
-            <Ionicons name="refresh" size={18} color="#fff" />
+            <Ionicons name="refresh" size={16} color={Colors.textInverse} />
             <Text style={styles.reorderBigText}>Reorder</Text>
           </Pressable>
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
+    </View>
+  );
+}
+
+function DetailRow({ icon, value }: { icon: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <View style={styles.detailIconWrap}>
+        <Ionicons name={icon as any} size={15} color={Colors.textSecondary} />
+      </View>
+      <Text style={styles.detailValue}>{value}</Text>
     </View>
   );
 }
@@ -180,10 +192,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: Colors.border,
   },
   topBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   topTitle: { flex: 1, fontSize: 17, fontFamily: "NunitoSans_700Bold", color: Colors.text, textAlign: "center" },
@@ -191,15 +203,18 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
   shopCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
   },
   shopName: { fontSize: 18, fontFamily: "NunitoSans_700Bold", color: Colors.text },
-  orderId: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary, marginTop: 4 },
-  orderDate: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginTop: 2 },
+  orderId: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary, marginTop: 3 },
+  orderDate: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
   cancelledCard: {
     backgroundColor: Colors.errorLight,
     borderRadius: 16,
@@ -207,60 +222,88 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.2)",
   },
   cancelledText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.error },
   trackingCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 18,
+    padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
-  sectionLabel: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text, marginBottom: 12 },
+  trackLabel: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 14,
+  },
   stepRow: { flexDirection: "row", alignItems: "flex-start" },
-  stepIndicator: { alignItems: "center", marginRight: 12 },
+  stepIndicator: { alignItems: "center", marginRight: 14 },
   stepDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.borderLight,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: "center",
     alignItems: "center",
   },
-  stepDotActive: { backgroundColor: Colors.primary },
-  stepDotCurrent: { backgroundColor: Colors.accent },
-  stepLine: { width: 2, height: 24, backgroundColor: Colors.borderLight },
+  stepDotActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  stepDotCurrent: { backgroundColor: Colors.accent, borderColor: Colors.accent },
+  stepLine: { width: 2, height: 22, backgroundColor: Colors.border },
   stepLineActive: { backgroundColor: Colors.primary },
-  stepLabel: { fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, paddingTop: 6 },
+  stepLabel: { fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, paddingTop: 5 },
   stepLabelActive: { fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
   stepLabelCurrent: { fontFamily: "NunitoSans_700Bold", color: Colors.accent },
   detailSection: { marginBottom: 16 },
+  detailHeading: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
   detailCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
-  detailRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  detailIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: Colors.surfaceElevated,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   detailValue: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
-  itemRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
-  itemName: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
-  itemQty: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textMuted, marginRight: 12 },
-  itemPrice: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text, minWidth: 50, textAlign: "right" },
-  divider: { height: 1, backgroundColor: Colors.borderLight, marginVertical: 8 },
-  totalLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
-  totalPrice: { fontSize: 18, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  itemRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
+  itemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.borderLight },
+  itemName: { flex: 1, fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  itemQty: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textMuted, marginRight: 14 },
+  itemPrice: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text, minWidth: 50, textAlign: "right" },
+  totalDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
+  totalLabel: { flex: 1, fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
   reorderBigBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     backgroundColor: Colors.primary,
-    paddingVertical: 14,
+    paddingVertical: 15,
     borderRadius: 14,
     marginTop: 8,
   },
-  reorderBigText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: "#fff" },
+  reorderBigText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
 });

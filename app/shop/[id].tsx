@@ -19,9 +19,9 @@ import Colors from "@/constants/colors";
 import type { Shop, Service } from "@shared/schema";
 
 const CATEGORY_LABELS: Record<string, string> = {
-  wash: "Wash",
+  wash: "Wash & Fold",
   dryclean: "Dry Clean",
-  iron: "Ironing",
+  iron: "Iron & Press",
   special: "Special Care",
 };
 
@@ -88,7 +88,7 @@ export default function ShopDetailScreen() {
 
   const handleProceed = () => {
     if (totalItems === 0) {
-      Alert.alert("No items selected", "Please add at least one service");
+      Alert.alert("No items", "Please add at least one service to continue");
       return;
     }
     const items = services
@@ -128,31 +128,31 @@ export default function ShopDetailScreen() {
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 4) }]}>
         <Pressable style={styles.topBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.topTitle} numberOfLines={1}>{shop.name}</Text>
         <Pressable style={styles.topBtn} onPress={toggleFav}>
-          <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? Colors.error : Colors.text} />
+          <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? Colors.error : Colors.textSecondary} />
         </Pressable>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.shopHeaderCard}>
           <View style={styles.shopIconLarge}>
-            <MaterialCommunityIcons name="washing-machine" size={40} color={Colors.primary} />
+            <MaterialCommunityIcons name="washing-machine" size={36} color={Colors.primary} />
           </View>
           <View style={styles.shopHeaderInfo}>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={16} color={Colors.star} />
+              <Ionicons name="star" size={15} color={Colors.star} />
               <Text style={styles.ratingBig}>{shop.rating?.toFixed(1)}</Text>
-              <Text style={styles.ratingCountBig}>({shop.totalRatings} ratings)</Text>
+              <Text style={styles.ratingCountBig}>({shop.totalRatings})</Text>
             </View>
             <View style={styles.metaRow}>
-              <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+              <Ionicons name="time-outline" size={13} color={Colors.textSecondary} />
               <Text style={styles.metaLabel}>{shop.openTime} - {shop.closeTime}</Text>
             </View>
             <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+              <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
               <Text style={styles.metaLabel} numberOfLines={2}>{shop.address}</Text>
             </View>
             {shop.deliveryFee === 0 && (
@@ -163,16 +163,18 @@ export default function ShopDetailScreen() {
           </View>
         </View>
 
+        <Text style={styles.servicesHeading}>Services</Text>
+
         {Object.entries(groupedServices).map(([cat, items]) => (
           <View key={cat} style={styles.categorySection}>
             <View style={styles.catHeader}>
-              <Ionicons name={(CATEGORY_ICONS[cat] || "list-outline") as any} size={18} color={Colors.primary} />
+              <Ionicons name={(CATEGORY_ICONS[cat] || "list-outline") as any} size={16} color={Colors.primary} />
               <Text style={styles.catTitle}>{CATEGORY_LABELS[cat] || cat}</Text>
             </View>
-            {items.map((svc) => {
+            {items.map((svc, i) => {
               const qty = selectedItems[svc.id] || 0;
               return (
-                <View key={svc.id} style={styles.serviceRow}>
+                <View key={svc.id} style={[styles.serviceRow, i < items.length - 1 && styles.serviceRowBorder]}>
                   <View style={styles.svcInfo}>
                     <Text style={styles.svcName}>{svc.name}</Text>
                     <Text style={styles.svcUnit}>{svc.unit}</Text>
@@ -180,16 +182,16 @@ export default function ShopDetailScreen() {
                   <Text style={styles.svcPrice}>{"\u20B9"}{svc.price}</Text>
                   {qty === 0 ? (
                     <Pressable style={styles.addBtn} onPress={() => updateQty(svc.id, 1)}>
-                      <Text style={styles.addBtnText}>Add</Text>
+                      <Ionicons name="add" size={16} color={Colors.primary} />
                     </Pressable>
                   ) : (
                     <View style={styles.qtyRow}>
                       <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, -1)}>
-                        <Ionicons name="remove" size={16} color={Colors.primary} />
+                        <Ionicons name="remove" size={14} color={Colors.primary} />
                       </Pressable>
                       <Text style={styles.qtyText}>{qty}</Text>
                       <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, 1)}>
-                        <Ionicons name="add" size={16} color={Colors.primary} />
+                        <Ionicons name="add" size={14} color={Colors.primary} />
                       </Pressable>
                     </View>
                   )}
@@ -199,7 +201,7 @@ export default function ShopDetailScreen() {
           </View>
         ))}
 
-        <View style={{ height: 120 }} />
+        <View style={{ height: 130 }} />
       </ScrollView>
 
       {totalItems > 0 && (
@@ -208,9 +210,9 @@ export default function ShopDetailScreen() {
             <Text style={styles.bottomItems}>{totalItems} item{totalItems !== 1 ? "s" : ""}</Text>
             <Text style={styles.bottomTotal}>{"\u20B9"}{totalPrice}</Text>
           </View>
-          <Pressable style={({ pressed }) => [styles.proceedBtn, pressed && { opacity: 0.9 }]} onPress={handleProceed}>
+          <Pressable style={({ pressed }) => [styles.proceedBtn, pressed && { opacity: 0.85 }]} onPress={handleProceed}>
             <Text style={styles.proceedText}>Schedule Pickup</Text>
-            <Ionicons name="arrow-forward" size={18} color="#fff" />
+            <Ionicons name="arrow-forward" size={16} color={Colors.textInverse} />
           </Pressable>
         </View>
       )}
@@ -227,10 +229,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingBottom: 8,
+    paddingBottom: 10,
     backgroundColor: Colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.borderLight,
+    borderBottomColor: Colors.border,
   },
   topBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   topTitle: { flex: 1, fontSize: 17, fontFamily: "NunitoSans_700Bold", color: Colors.text, textAlign: "center" },
@@ -239,22 +241,22 @@ const styles = StyleSheet.create({
   shopHeaderCard: {
     flexDirection: "row",
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 24,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   shopIconLarge: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    backgroundColor: "#E0F7FA",
+    width: 60,
+    height: 60,
+    borderRadius: 16,
+    backgroundColor: Colors.primaryMuted,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
   },
-  shopHeaderInfo: { flex: 1, gap: 6 },
+  shopHeaderInfo: { flex: 1, gap: 5 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   ratingBig: { fontSize: 16, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
   ratingCountBig: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
@@ -262,12 +264,18 @@ const styles = StyleSheet.create({
   metaLabel: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, flex: 1 },
   freeBadge: { backgroundColor: Colors.successLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" },
   freeText: { fontSize: 11, fontFamily: "NunitoSans_700Bold", color: Colors.success },
+  servicesHeading: {
+    fontSize: 18,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.text,
+    marginBottom: 14,
+  },
   categorySection: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     overflow: "hidden",
   },
   catHeader: {
@@ -275,33 +283,43 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.borderLight,
+    paddingVertical: 11,
+    backgroundColor: Colors.surfaceElevated,
   },
-  catTitle: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  catTitle: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   serviceRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 13,
+  },
+  serviceRowBorder: {
     borderBottomWidth: 1,
     borderBottomColor: Colors.borderLight,
   },
   svcInfo: { flex: 1 },
   svcName: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
-  svcUnit: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
-  svcPrice: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text, marginRight: 12, minWidth: 50, textAlign: "right" },
+  svcUnit: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginTop: 1 },
+  svcPrice: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.accent, marginRight: 14, minWidth: 45, textAlign: "right" },
   addBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  addBtnText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.primary },
-  qtyRow: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "#E0F7FA", borderRadius: 8, padding: 2 },
-  qtyBtn: { width: 28, height: 28, justifyContent: "center", alignItems: "center" },
-  qtyText: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text, minWidth: 24, textAlign: "center" },
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderAccent,
+  },
+  qtyBtn: { width: 30, height: 30, justifyContent: "center", alignItems: "center" },
+  qtyText: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text, minWidth: 22, textAlign: "center" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -310,22 +328,22 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
   },
   bottomInfo: { flex: 1 },
   bottomItems: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
-  bottomTotal: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  bottomTotal: { fontSize: 22, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
   proceedBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: Colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
     borderRadius: 12,
   },
-  proceedText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: "#fff" },
+  proceedText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
 });

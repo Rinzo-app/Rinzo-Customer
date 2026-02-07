@@ -40,26 +40,27 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
     >
       <View style={styles.shopHeader}>
         <View style={styles.shopAvatar}>
-          <MaterialCommunityIcons name="washing-machine" size={28} color={Colors.primary} />
+          <MaterialCommunityIcons name="washing-machine" size={26} color={Colors.primary} />
         </View>
         <View style={styles.shopInfo}>
           <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color={Colors.star} />
+            <Ionicons name="star" size={13} color={Colors.star} />
             <Text style={styles.ratingText}>{shop.rating?.toFixed(1)}</Text>
             <Text style={styles.ratingCount}>({shop.totalRatings})</Text>
             <View style={styles.dot} />
-            <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
+            <Ionicons name="location-outline" size={12} color={Colors.textSecondary} />
             <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}</Text>
           </View>
         </View>
         <Pressable style={styles.favBtn} onPress={onToggleFav} hitSlop={12}>
-          <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? Colors.error : Colors.textMuted} />
+          <Ionicons name={isFav ? "heart" : "heart-outline"} size={20} color={isFav ? Colors.error : Colors.textMuted} />
         </Pressable>
       </View>
+
       <View style={styles.shopMeta}>
-        <View style={styles.metaItem}>
-          <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+        <View style={styles.metaChip}>
+          <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
           <Text style={styles.metaText}>{shop.openTime} - {shop.closeTime}</Text>
         </View>
         {shop.deliveryFee === 0 ? (
@@ -67,13 +68,23 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
             <Text style={styles.freeText}>Free Pickup</Text>
           </View>
         ) : (
-          <Text style={styles.metaText}>Pickup fee: {"\u20B9"}{shop.deliveryFee}</Text>
+          <View style={styles.metaChip}>
+            <Text style={styles.metaText}>{"\u20B9"}{shop.deliveryFee} pickup</Text>
+          </View>
         )}
         {shop.minOrder && shop.minOrder > 0 && (
-          <Text style={styles.metaText}>Min: {"\u20B9"}{shop.minOrder}</Text>
+          <View style={styles.metaChip}>
+            <Text style={styles.metaText}>Min {"\u20B9"}{shop.minOrder}</Text>
+          </View>
         )}
       </View>
+
       <Text style={styles.shopAddress} numberOfLines={1}>{shop.address}</Text>
+
+      <View style={styles.viewRow}>
+        <Text style={styles.viewText}>View Services</Text>
+        <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+      </View>
     </Pressable>
   );
 }
@@ -138,9 +149,9 @@ export default function HomeScreen() {
         <View>
           <Text style={styles.greeting}>Hi {firstName}</Text>
           <Pressable style={styles.locationRow} onPress={() => router.push("/address/manage")}>
-            <Ionicons name="location" size={16} color={Colors.primary} />
+            <Ionicons name="location" size={14} color={Colors.primary} />
             <Text style={styles.locationText} numberOfLines={1}>New Delhi, India</Text>
-            <Ionicons name="chevron-down" size={14} color={Colors.textSecondary} />
+            <Ionicons name="chevron-down" size={12} color={Colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -151,9 +162,9 @@ export default function HomeScreen() {
         </View>
       ) : sortedShops.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="washing-machine" size={64} color={Colors.textMuted} />
+          <MaterialCommunityIcons name="washing-machine" size={56} color={Colors.textMuted} />
           <Text style={styles.emptyTitle}>No shops nearby</Text>
-          <Text style={styles.emptyText}>We'll add more laundry shops in your area soon</Text>
+          <Text style={styles.emptyText}>We'll add more laundry shops soon</Text>
         </View>
       ) : (
         <FlatList
@@ -169,9 +180,10 @@ export default function HomeScreen() {
             />
           }
           ListHeaderComponent={
-            <Text style={styles.sectionTitle}>
-              Nearby Laundry Shops ({sortedShops.length})
-            </Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Nearby</Text>
+              <Text style={styles.sectionCount}>{sortedShops.length} shops</Text>
+            </View>
           }
           renderItem={({ item }) => (
             <ShopCard
@@ -181,7 +193,6 @@ export default function HomeScreen() {
               onToggleFav={() => toggleFav(item.shop.id)}
             />
           )}
-          contentInsetAdjustmentBehavior="automatic"
         />
       )}
     </View>
@@ -191,12 +202,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    paddingTop: 12,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 26,
     fontFamily: "NunitoSans_800ExtraBold",
     color: Colors.text,
   },
@@ -216,11 +227,21 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, padding: 40 },
   emptyTitle: { fontSize: 18, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   emptyText: { fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, textAlign: "center" },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 14,
+  },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: "NunitoSans_700Bold",
     color: Colors.text,
-    marginBottom: 12,
+  },
+  sectionCount: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.textMuted,
   },
   listContent: {
     paddingHorizontal: 20,
@@ -228,19 +249,19 @@ const styles = StyleSheet.create({
   },
   shopCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
-  cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  shopHeader: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
+  cardPressed: { transform: [{ scale: 0.97 }], opacity: 0.85 },
+  shopHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   shopAvatar: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: 14,
-    backgroundColor: "#E0F7FA",
+    backgroundColor: Colors.primaryMuted,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -248,20 +269,35 @@ const styles = StyleSheet.create({
   shopInfo: { flex: 1 },
   shopName: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 3 },
-  ratingText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  ratingText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.star },
   ratingCount: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
   dot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: Colors.textMuted, marginHorizontal: 4 },
   distanceText: { fontSize: 12, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
   favBtn: { padding: 4 },
-  shopMeta: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 6 },
-  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  shopMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" },
+  metaChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 8,
+  },
+  metaText: { fontSize: 11, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
   freeBadge: {
     backgroundColor: Colors.successLight,
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   freeText: { fontSize: 11, fontFamily: "NunitoSans_700Bold", color: Colors.success },
-  shopAddress: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
+  shopAddress: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginBottom: 10 },
+  viewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 2,
+  },
+  viewText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.primary },
 });
