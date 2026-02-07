@@ -1,0 +1,331 @@
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  Alert,
+} from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useQuery } from "@tanstack/react-query";
+import * as Haptics from "expo-haptics";
+import { apiRequest } from "@/lib/query-client";
+import Colors from "@/constants/colors";
+import type { Shop, Service } from "@shared/schema";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  wash: "Wash",
+  dryclean: "Dry Clean",
+  iron: "Ironing",
+  special: "Special Care",
+};
+
+const CATEGORY_ICONS: Record<string, string> = {
+  wash: "water-outline",
+  dryclean: "sparkles-outline",
+  iron: "shirt-outline",
+  special: "diamond-outline",
+};
+
+export default function ShopDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
+  const [isFav, setIsFav] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+
+  const shopQuery = useQuery<Shop>({ queryKey: [`/api/shops/${id}`] });
+  const servicesQuery = useQuery<Service[]>({ queryKey: [`/api/shops/${id}/services`] });
+  const favQuery = useQuery({
+    queryKey: [`/api/favorites/${id}/check`],
+    select: (data: any) => data.isFavorite,
+  });
+
+  React.useEffect(() => {
+    if (favQuery.data !== undefined) setIsFav(favQuery.data);
+  }, [favQuery.data]);
+
+  const shop = shopQuery.data;
+  const services = servicesQuery.data || [];
+
+  const groupedServices = React.useMemo(() => {
+    const groups: Record<string, Service[]> = {};
+    services.forEach((s) => {
+      if (!groups[s.category]) groups[s.category] = [];
+      groups[s.category].push(s);
+    });
+    return groups;
+  }, [services]);
+
+  const totalItems = Object.values(selectedItems).reduce((s, q) => s + q, 0);
+  const totalPrice = services.reduce((sum, svc) => sum + (selectedItems[svc.id] || 0) * svc.price, 0);
+
+  const updateQty = useCallback((serviceId: string, delta: number) => {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedItems((prev) => {
+      const current = prev[serviceId] || 0;
+      const next = Math.max(0, current + delta);
+      if (next === 0) {
+        const { [serviceId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [serviceId]: next };
+    });
+  }, []);
+
+  const toggleFav = async () => {
+    try {
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const res = await apiRequest("POST", `/api/favorites/${id}/toggle`);
+      const data = await res.json();
+      setIsFav(data.isFavorite);
+    } catch {}
+  };
+
+  const handleProceed = () => {
+    if (totalItems === 0) {
+      Alert.alert("No items selected", "Please add at least one service");
+      return;
+    }
+    const items = services
+      .filter((s) => selectedItems[s.id])
+      .map((s) => ({
+        serviceId: s.id,
+        name: s.name,
+        quantity: selectedItems[s.id],
+        price: s.price,
+      }));
+    router.push({
+      pathname: "/order/new",
+      params: { shopId: id, items: JSON.stringify(items) },
+    });
+  };
+
+  if (shopQuery.isLoading || servicesQuery.isLoading) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!shop) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <Text style={styles.errorText}>Shop not found</Text>
+        <Pressable onPress={() => router.back()}>
+          <Text style={styles.backLink}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 4) }]}>
+        <Pressable style={styles.topBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+        </Pressable>
+        <Text style={styles.topTitle} numberOfLines={1}>{shop.name}</Text>
+        <Pressable style={styles.topBtn} onPress={toggleFav}>
+          <Ionicons name={isFav ? "heart" : "heart-outline"} size={22} color={isFav ? Colors.error : Colors.text} />
+        </Pressable>
+      </View>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.shopHeaderCard}>
+          <View style={styles.shopIconLarge}>
+            <MaterialCommunityIcons name="washing-machine" size={40} color={Colors.primary} />
+          </View>
+          <View style={styles.shopHeaderInfo}>
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={16} color={Colors.star} />
+              <Text style={styles.ratingBig}>{shop.rating?.toFixed(1)}</Text>
+              <Text style={styles.ratingCountBig}>({shop.totalRatings} ratings)</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+              <Text style={styles.metaLabel}>{shop.openTime} - {shop.closeTime}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+              <Text style={styles.metaLabel} numberOfLines={2}>{shop.address}</Text>
+            </View>
+            {shop.deliveryFee === 0 && (
+              <View style={styles.freeBadge}>
+                <Text style={styles.freeText}>Free Pickup & Delivery</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {Object.entries(groupedServices).map(([cat, items]) => (
+          <View key={cat} style={styles.categorySection}>
+            <View style={styles.catHeader}>
+              <Ionicons name={(CATEGORY_ICONS[cat] || "list-outline") as any} size={18} color={Colors.primary} />
+              <Text style={styles.catTitle}>{CATEGORY_LABELS[cat] || cat}</Text>
+            </View>
+            {items.map((svc) => {
+              const qty = selectedItems[svc.id] || 0;
+              return (
+                <View key={svc.id} style={styles.serviceRow}>
+                  <View style={styles.svcInfo}>
+                    <Text style={styles.svcName}>{svc.name}</Text>
+                    <Text style={styles.svcUnit}>{svc.unit}</Text>
+                  </View>
+                  <Text style={styles.svcPrice}>{"\u20B9"}{svc.price}</Text>
+                  {qty === 0 ? (
+                    <Pressable style={styles.addBtn} onPress={() => updateQty(svc.id, 1)}>
+                      <Text style={styles.addBtnText}>Add</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={styles.qtyRow}>
+                      <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, -1)}>
+                        <Ionicons name="remove" size={16} color={Colors.primary} />
+                      </Pressable>
+                      <Text style={styles.qtyText}>{qty}</Text>
+                      <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, 1)}>
+                        <Ionicons name="add" size={16} color={Colors.primary} />
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        ))}
+
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {totalItems > 0 && (
+        <View style={[styles.bottomBar, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
+          <View style={styles.bottomInfo}>
+            <Text style={styles.bottomItems}>{totalItems} item{totalItems !== 1 ? "s" : ""}</Text>
+            <Text style={styles.bottomTotal}>{"\u20B9"}{totalPrice}</Text>
+          </View>
+          <Pressable style={({ pressed }) => [styles.proceedBtn, pressed && { opacity: 0.9 }]} onPress={handleProceed}>
+            <Text style={styles.proceedText}>Schedule Pickup</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.background },
+  errorText: { fontSize: 16, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
+  backLink: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.primary, marginTop: 8 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  topBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
+  topTitle: { flex: 1, fontSize: 17, fontFamily: "NunitoSans_700Bold", color: Colors.text, textAlign: "center" },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 16 },
+  shopHeaderCard: {
+    flexDirection: "row",
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  shopIconLarge: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: "#E0F7FA",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  shopHeaderInfo: { flex: 1, gap: 6 },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  ratingBig: { fontSize: 16, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  ratingCountBig: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
+  metaRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  metaLabel: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, flex: 1 },
+  freeBadge: { backgroundColor: Colors.successLight, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6, alignSelf: "flex-start" },
+  freeText: { fontSize: 11, fontFamily: "NunitoSans_700Bold", color: Colors.success },
+  categorySection: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    overflow: "hidden",
+  },
+  catHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: Colors.borderLight,
+  },
+  catTitle: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  serviceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.borderLight,
+  },
+  svcInfo: { flex: 1 },
+  svcName: { fontSize: 14, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
+  svcUnit: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
+  svcPrice: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text, marginRight: 12, minWidth: 50, textAlign: "right" },
+  addBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  addBtnText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.primary },
+  qtyRow: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: "#E0F7FA", borderRadius: 8, padding: 2 },
+  qtyBtn: { width: 28, height: 28, justifyContent: "center", alignItems: "center" },
+  qtyText: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text, minWidth: 24, textAlign: "center" },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  bottomInfo: { flex: 1 },
+  bottomItems: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  bottomTotal: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  proceedBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  proceedText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: "#fff" },
+});
