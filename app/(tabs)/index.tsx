@@ -95,21 +95,18 @@ export default function HomeScreen() {
   const [userLat] = useState(28.6139);
   const [userLng] = useState(77.2090);
   const [favSet, setFavSet] = useState<Set<string>>(new Set());
+  const [favsLoaded, setFavsLoaded] = useState(false);
 
   const shopsQuery = useQuery<Shop[]>({ queryKey: ["/api/shops"] });
-  const favsQuery = useQuery({
-    queryKey: ["/api/favorites"],
-    select: (data: any[]) => {
-      const ids = new Set(data.map((f: any) => f.shopId));
-      return ids;
-    },
-  });
+  const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
 
   React.useEffect(() => {
-    if (favsQuery.data) {
-      setFavSet(favsQuery.data);
+    if (favsQuery.data && !favsLoaded) {
+      const ids = new Set(favsQuery.data.map((f: any) => f.shopId));
+      setFavSet(ids);
+      setFavsLoaded(true);
     }
-  }, [favsQuery.data]);
+  }, [favsQuery.data, favsLoaded]);
 
   const sortedShops = useMemo(() => {
     if (!shopsQuery.data) return [];
