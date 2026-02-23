@@ -113,9 +113,11 @@ async function startMetro(expoPublicDomain) {
   }
 
   console.log("Starting Metro...");
-  console.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
+  console.log(`Setting EXPO_PUBLIC_BACKEND_URL=https://${expoPublicDomain}`);
   const env = {
     ...process.env,
+    EXPO_PUBLIC_BACKEND_URL: `https://${expoPublicDomain}`,
+    // Keep EXPO_PUBLIC_DOMAIN for backwards compat with any remaining consumers
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
   };
   metroProcess = spawn("npm", ["run", "expo:start:static:build"], {

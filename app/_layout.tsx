@@ -7,6 +7,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/lib/auth";
+import { CartProvider } from "@/lib/cart-context";
 import {
   useFonts,
   NunitoSans_400Regular,
@@ -31,6 +32,7 @@ function RootLayoutNav() {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="verify" />
+      <Stack.Screen name="status-blocked" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="shop/[id]" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="order/new" options={{ animation: "slide_from_right" }} />
@@ -62,8 +64,10 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
           <KeyboardProvider>
             <AuthProvider>
+              <CartProvider>
               <StatusBar style="light" />
               <RootLayoutNav />
+              </CartProvider>
             </AuthProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>

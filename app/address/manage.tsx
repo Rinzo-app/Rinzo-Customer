@@ -18,7 +18,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { apiRequest, queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
-import type { Address } from "@shared/schema";
+import type { Address } from "@/lib/types";
 
 const LABEL_OPTIONS = ["Home", "Work", "Other"];
 

@@ -1,84 +1,50 @@
-import { fetch } from "expo/fetch";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { request, requestRaw, ApiError } from "./http-client";
 
-const TOKEN_KEY = "saaf_auth_token";
+// ── Shared API helpers (backed by lib/http-client.ts) ────
 
-export function getApiUrl(): string {
-  let host = process.env.EXPO_PUBLIC_DOMAIN;
-  if (!host) {
-    throw new Error("EXPO_PUBLIC_DOMAIN is not set");
-  }
-  let url = new URL(`https://${host}`);
-  return url.href;
-}
-
-async function getAuthHeaders(): Promise<Record<string, string>> {
-  const token = await AsyncStorage.getItem(TOKEN_KEY);
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return {};
-}
-
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
-  }
-}
-
+/**
+ * Make an authenticated request and return the raw Response.
+ * Delegates to the unified HTTP client.
+ */
 export async function apiRequest(
   method: string,
   route: string,
-  data?: unknown | undefined,
+  data?: unknown,
 ): Promise<Response> {
-  const baseUrl = getApiUrl();
-  const url = new URL(route, baseUrl);
-  const authHeaders = await getAuthHeaders();
-
-  const res = await fetch(url.toString(), {
-    method,
-    headers: {
-      ...authHeaders,
-      ...(data ? { "Content-Type": "application/json" } : {}),
-    },
-    body: data ? JSON.stringify(data) : undefined,
-  });
-
-  await throwIfResNotOk(res);
-  return res;
+  return requestRaw(method, route, data);
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
+export function getQueryFn<T>(options: {
   on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const baseUrl = getApiUrl();
-    const url = new URL(queryKey[0] as string, baseUrl);
-    const authHeaders = await getAuthHeaders();
-
-    const res = await fetch(url.toString(), {
-      headers: authHeaders,
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+}): QueryFunction<T> {
+  return async ({ queryKey }) => {
+    const path = queryKey.join("/") as string;
+    // Ensure the path starts with /
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    try {
+      return await request<T>("GET", normalizedPath);
+    } catch (err) {
+      if (
+        options.on401 === "returnNull" &&
+        err instanceof ApiError &&
+        err.status === 401
+      ) {
+        return null as unknown as T;
+      }
+      throw err;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: 60000,
+      refetchOnWindowFocus: true,
+      staleTime: 60_000,          // 1 min — sane default; override per-query for hot data
       retry: false,
     },
     mutations: {

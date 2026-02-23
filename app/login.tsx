@@ -28,11 +28,27 @@ export default function LoginScreen() {
     setPhone(digits);
   };
 
+  // TODO: Native phone auth migration
+  // 1. npx expo install @react-native-firebase/app @react-native-firebase/auth
+  // 2. Add to app.json plugins
+  // 3. Configure google-services.json (Android) + GoogleService-Info.plist (iOS)
+  // 4. Replace web signInWithPhoneNumber with native auth().signInWithPhoneNumber()
+  // 5. Remove RecaptchaVerifier (not needed on native)
+
   const handleSendOtp = async () => {
     if (phone.length < 10) {
       Alert.alert("Invalid Number", "Please enter a valid phone number");
       return;
     }
+
+    if (Platform.OS !== "web") {
+      Alert.alert(
+        "Not Available",
+        "Phone sign-in is currently available on the web version only. Native support coming soon.",
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const fullPhone = phone.startsWith("+") ? phone : `+91${phone}`;
@@ -57,7 +73,7 @@ export default function LoginScreen() {
           <View style={styles.iconContainer}>
             <Ionicons name="water" size={40} color={Colors.primary} />
           </View>
-          <Text style={styles.title}>Saaf</Text>
+          <Text style={styles.title}>Rinzo</Text>
           <Text style={styles.subtitle}>Premium laundry, at your doorstep</Text>
         </View>
 
@@ -99,11 +115,6 @@ export default function LoginScreen() {
         <Text style={styles.hint}>
           We'll send you a 6-digit code to verify
         </Text>
-
-        <View style={styles.testCard}>
-          <Ionicons name="flask-outline" size={14} color={Colors.textMuted} />
-          <Text style={styles.testNote}>Test: 1234567890 / OTP: 123456</Text>
-        </View>
       </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
@@ -228,25 +239,6 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: "center",
     marginTop: 14,
-  },
-  testCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    alignSelf: "center",
-  },
-  testNote: {
-    fontSize: 12,
-    fontFamily: "NunitoSans_400Regular",
-    color: Colors.textMuted,
   },
   footer: {
     paddingHorizontal: 28,

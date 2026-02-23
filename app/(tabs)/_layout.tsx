@@ -1,9 +1,10 @@
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
-import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
+import { NativeTabs, Icon, Label, VectorIcon } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import React from "react";
 import Colors from "@/constants/colors";
 
@@ -11,15 +12,15 @@ function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} md="home" />
+        <Icon sf={{ default: "house", selected: "house.fill" }} androidSrc={<VectorIcon family={MaterialIcons} name="home" />} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="orders">
-        <Icon sf={{ default: "bag", selected: "bag.fill" }} md="shopping_bag" />
+        <Icon sf={{ default: "bag", selected: "bag.fill" }} androidSrc={<VectorIcon family={MaterialIcons} name="shopping-bag" />} />
         <Label>Orders</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
-        <Icon sf={{ default: "person", selected: "person.fill" }} md="person" />
+        <Icon sf={{ default: "person", selected: "person.fill" }} androidSrc={<VectorIcon family={MaterialIcons} name="person" />} />
         <Label>Profile</Label>
       </NativeTabs.Trigger>
     </NativeTabs>

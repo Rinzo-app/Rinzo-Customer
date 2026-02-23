@@ -15,7 +15,25 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/lib/auth";
+import { fetchMyDisputes, type Dispute } from "@/lib/api";
 import Colors from "@/constants/colors";
+
+function disputeStatusColor(status: string) {
+  switch (status) {
+    case "OPEN": return { backgroundColor: Colors.warningLight };
+    case "IN_REVIEW": return { backgroundColor: Colors.primaryMuted };
+    case "RESOLVED": return { backgroundColor: Colors.successLight };
+    default: return { backgroundColor: Colors.surfaceElevated };
+  }
+}
+function disputeStatusTextColor(status: string) {
+  switch (status) {
+    case "OPEN": return { color: Colors.warning };
+    case "IN_REVIEW": return { color: Colors.primary };
+    case "RESOLVED": return { color: Colors.success };
+    default: return { color: Colors.textMuted };
+  }
+}
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -25,6 +43,11 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
 
   const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
+  const disputesQuery = useQuery<Dispute[]>({
+    queryKey: ["my-disputes"],
+    queryFn: fetchMyDisputes,
+    staleTime: 30_000,
+  });
 
   const handleSaveName = async () => {
     if (!name.trim()) return;
@@ -113,10 +136,41 @@ export default function ProfileScreen() {
           />
           <MenuItem
             icon="information-circle-outline"
-            label="About Saaf"
+            label="About Rinzo"
             onPress={() => {}}
             isLast
           />
+        </View>
+
+        {/* My Disputes */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="chatbubble-ellipses-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.sectionTitle}>My Disputes</Text>
+          </View>
+          {disputesQuery.isLoading ? (
+            <View style={styles.disputeEmpty}>
+              <Text style={styles.disputeEmptyText}>Loading…</Text>
+            </View>
+          ) : !disputesQuery.data?.length ? (
+            <View style={styles.disputeEmpty}>
+              <Text style={styles.disputeEmptyText}>No disputes filed</Text>
+            </View>
+          ) : (
+            disputesQuery.data.map((d) => (
+              <View key={d.id} style={styles.disputeCard}>
+                <View style={styles.disputeRow}>
+                  <Text style={styles.disputeCategory}>{d.category}</Text>
+                  <View style={[styles.disputeBadge, disputeStatusColor(d.status)]}>
+                    <Text style={[styles.disputeBadgeText, disputeStatusTextColor(d.status)]}>{d.status.replace("_", " ")}</Text>
+                  </View>
+                </View>
+                <Text style={styles.disputeOrder} numberOfLines={1}>Order #{String(d.orderId).slice(0, 8)}</Text>
+                {d.description ? <Text style={styles.disputeDesc} numberOfLines={2}>{d.description}</Text> : null}
+                <Text style={styles.disputeDate}>{new Date(d.createdAt).toLocaleDateString()}</Text>
+              </View>
+            ))
+          )}
         </View>
 
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
@@ -124,7 +178,7 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </Pressable>
 
-        <Text style={styles.version}>Saaf v1.0.0</Text>
+        <Text style={styles.version}>Rinzo v1.0.0</Text>
       </ScrollView>
     </View>
   );
@@ -243,6 +297,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   menuLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 8,
+  },
+  sectionTitle: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.textSecondary, textTransform: "uppercase" as const, letterSpacing: 0.5 },
+  disputeEmpty: { paddingHorizontal: 16, paddingBottom: 16 },
+  disputeEmptyText: { fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
+  disputeCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  disputeRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  disputeCategory: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  disputeBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  disputeBadgeText: { fontSize: 11, fontFamily: "NunitoSans_700Bold", textTransform: "uppercase" as const },
+  disputeOrder: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginBottom: 2 },
+  disputeDesc: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginBottom: 2 },
+  disputeDate: { fontSize: 11, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",

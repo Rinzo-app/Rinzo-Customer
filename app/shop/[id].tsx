@@ -15,8 +15,9 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { apiRequest } from "@/lib/query-client";
+import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
-import type { Shop, Service } from "@shared/schema";
+import type { Shop, Service } from "@/lib/types";
 
 const CATEGORY_LABELS: Record<string, string> = {
   wash: "Wash & Fold",
@@ -36,7 +37,8 @@ export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [isFav, setIsFav] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const { cart, updateQty: ctxUpdateQty, cartCount } = useCart();
+  const selectedItems = cart.shopId === id ? cart.items : {};
 
   const shopQuery = useQuery<Shop>({ queryKey: [`/api/shops/${id}`] });
   const servicesQuery = useQuery<Service[]>({ queryKey: [`/api/shops/${id}/services`] });
@@ -66,16 +68,8 @@ export default function ShopDetailScreen() {
 
   const updateQty = useCallback((serviceId: string, delta: number) => {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedItems((prev) => {
-      const current = prev[serviceId] || 0;
-      const next = Math.max(0, current + delta);
-      if (next === 0) {
-        const { [serviceId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [serviceId]: next };
-    });
-  }, []);
+    ctxUpdateQty(id!, serviceId, delta);
+  }, [id, ctxUpdateQty]);
 
   const toggleFav = async () => {
     try {

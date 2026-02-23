@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
+import { fetchCustomerOrders } from "@/lib/api";
 import Colors from "@/constants/colors";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -81,7 +82,7 @@ function OrderCard({ order }: { order: any }) {
 
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
-  const ordersQuery = useQuery<any[]>({ queryKey: ["/api/orders"] });
+  const ordersQuery = useQuery<any[]>({ queryKey: ["customer-orders"], queryFn: fetchCustomerOrders });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>

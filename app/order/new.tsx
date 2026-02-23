@@ -14,9 +14,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { apiRequest, queryClient } from "@/lib/query-client";
+import { queryClient } from "@/lib/query-client";
+import { placeOrder } from "@/lib/api";
+import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
-import type { Address } from "@shared/schema";
+import type { Address } from "@/lib/types";
 
 const PICKUP_SLOTS = [
   "8 - 10 AM",
@@ -48,6 +50,7 @@ export default function NewOrderScreen() {
   const { shopId, items: itemsParam, reorderItems } = useLocalSearchParams<{
     shopId: string; items?: string; reorderItems?: string;
   }>();
+  const { clearCart } = useCart();
 
   const parsedItems = useMemo(() => {
     try {
@@ -73,18 +76,21 @@ export default function NewOrderScreen() {
 
   const orderMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/orders", {
+      const selectedAddr = addressesQuery.data?.find((a) => a.id === activeAddressId);
+      const addressLine = selectedAddr?.addressLine || "Pickup address";
+      return placeOrder({
         shopId,
-        addressId: activeAddressId,
+        items: parsedItems.map((i: any) => ({ serviceId: i.serviceId, quantity: i.quantity })),
+        pickupAddress: addressLine,
+        deliveryAddress: addressLine,
         pickupDate: days[selectedDate].date,
-        pickupSlot: selectedSlot,
-        items: parsedItems,
+        pickupSlot: selectedSlot || undefined,
       });
-      return res.json();
     },
     onSuccess: (data) => {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      clearCart();
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
       router.replace({ pathname: "/order/[id]", params: { id: data.id } });
     },
     onError: (err: Error) => {

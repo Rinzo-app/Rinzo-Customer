@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,16 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Alert,
+  TextInput,
+  Modal,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { fetchOrder, cancelOrder, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 
 const STATUS_STEPS = [
@@ -33,8 +38,56 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
-  const orderQuery = useQuery<any>({ queryKey: [`/api/orders/${id}`] });
+  // ── Dispute form state ───────────────────────────────
+  const [showDispute, setShowDispute] = useState(false);
+  const [disputeCategory, setDisputeCategory] = useState("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputeError, setDisputeError] = useState("");
+
+  const orderQuery = useQuery<any>({ queryKey: ["order", id], queryFn: () => fetchOrder(id!) });
   const order = orderQuery.data;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelOrder(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
+      orderQuery.refetch();
+    },
+    onError: (err: Error) => {
+      Alert.alert("Cancel Failed", err.message);
+    },
+  });
+
+  const disputeMutation = useMutation({
+    mutationFn: () =>
+      createDispute({
+        orderId: id!,
+        category: disputeCategory,
+        description: disputeDescription.trim(),
+      }),
+    onSuccess: () => {
+      setShowDispute(false);
+      setDisputeCategory("");
+      setDisputeDescription("");
+      setDisputeError("");
+      queryClient.invalidateQueries({ queryKey: ["my-disputes"] });
+      Alert.alert("Dispute Submitted", "We'll review your issue and get back to you shortly.");
+    },
+    onError: (err: any) => {
+      setDisputeError(err.message || "Failed to submit. Please try again.");
+    },
+  });
+
+  function handleCancel() {
+    Alert.alert(
+      "Cancel Order",
+      "Are you sure you want to cancel this order?",
+      [
+        { text: "No", style: "cancel" },
+        { text: "Yes, Cancel", style: "destructive", onPress: () => cancelMutation.mutate() },
+      ],
+    );
+  }
 
   if (orderQuery.isLoading) {
     return (
@@ -151,6 +204,27 @@ export default function OrderDetailScreen() {
           </View>
         </View>
 
+        {order.status === "placed" && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelBigBtn,
+              pressed && { opacity: 0.85 },
+              cancelMutation.isPending && { opacity: 0.6 },
+            ]}
+            onPress={handleCancel}
+            disabled={cancelMutation.isPending}
+          >
+            {cancelMutation.isPending ? (
+              <ActivityIndicator color={Colors.error} />
+            ) : (
+              <>
+                <Ionicons name="close-circle" size={16} color={Colors.error} />
+                <Text style={styles.cancelBigText}>Cancel Order</Text>
+              </>
+            )}
+          </Pressable>
+        )}
+
         {(order.status === "delivered" || order.status === "cancelled") && (
           <Pressable
             style={({ pressed }) => [styles.reorderBigBtn, pressed && { opacity: 0.85 }]}
@@ -166,8 +240,108 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
+        {/* Help / Raise Dispute button — available for all non-cancelled orders */}
+        {order.status !== "cancelled" && (
+          <Pressable
+            style={({ pressed }) => [styles.disputeBtn, pressed && { opacity: 0.85 }]}
+            onPress={() => setShowDispute(true)}
+          >
+            <Ionicons name="help-circle-outline" size={16} color={Colors.warning} />
+            <Text style={styles.disputeBtnText}>Help / Raise Dispute</Text>
+          </Pressable>
+        )}
+
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* ── Dispute Modal ─────────────────────────────── */}
+      <Modal
+        visible={showDispute}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDispute(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 20 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Raise a Dispute</Text>
+              <Pressable onPress={() => setShowDispute(false)} hitSlop={12}>
+                <Ionicons name="close" size={22} color={Colors.text} />
+              </Pressable>
+            </View>
+
+            {!!disputeError && (
+              <View style={styles.disputeErrorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={styles.disputeErrorText}>{disputeError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>Category</Text>
+            <View style={styles.categoriesGrid}>
+              {DISPUTE_CATEGORIES.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    disputeCategory === cat && styles.categoryChipSelected,
+                  ]}
+                  onPress={() => setDisputeCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      disputeCategory === cat && styles.categoryChipTextSelected,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Description</Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder="Describe the issue in detail..."
+              placeholderTextColor={Colors.textMuted}
+              value={disputeDescription}
+              onChangeText={setDisputeDescription}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              editable={!disputeMutation.isPending}
+            />
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.submitDisputeBtn,
+                pressed && { opacity: 0.85 },
+                disputeMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={() => {
+                if (!disputeCategory) {
+                  setDisputeError("Please select a category");
+                  return;
+                }
+                if (!disputeDescription.trim()) {
+                  setDisputeError("Please provide a description");
+                  return;
+                }
+                setDisputeError("");
+                disputeMutation.mutate();
+              }}
+              disabled={disputeMutation.isPending}
+            >
+              {disputeMutation.isPending ? (
+                <ActivityIndicator size="small" color={Colors.textInverse} />
+              ) : (
+                <Text style={styles.submitDisputeBtnText}>Submit Dispute</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -306,4 +480,121 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   reorderBigText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
+  cancelBigBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.errorLight,
+    paddingVertical: 15,
+    borderRadius: 14,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.3)",
+  },
+  cancelBigText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.error },
+  disputeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.warningLight,
+    paddingVertical: 15,
+    borderRadius: 14,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.3)",
+  },
+  disputeBtnText: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.warning },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    maxHeight: "85%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  disputeErrorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.errorLight,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.2)",
+  },
+  disputeErrorText: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.error, flex: 1 },
+  fieldLabel: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  categoriesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  categoryChipSelected: {
+    backgroundColor: Colors.primaryMuted,
+    borderColor: Colors.primary,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.textSecondary,
+  },
+  categoryChipTextSelected: {
+    color: Colors.primary,
+  },
+  textArea: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 15,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.text,
+    minHeight: 100,
+  },
+  submitDisputeBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  submitDisputeBtnText: {
+    fontSize: 16,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.textInverse,
+  },
 });

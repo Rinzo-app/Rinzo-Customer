@@ -16,8 +16,10 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/query-client";
+import { fetchShops } from "@/lib/api";
+import { useUserLocation } from "@/lib/use-location";
 import Colors from "@/constants/colors";
-import type { Shop } from "@shared/schema";
+import type { Shop } from "@/lib/types";
 
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -92,12 +94,11 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { customer } = useAuth();
-  const [userLat] = useState(28.6139);
-  const [userLng] = useState(77.2090);
+  const { location, loading: locationLoading, permissionDenied } = useUserLocation();
   const [favSet, setFavSet] = useState<Set<string>>(new Set());
   const [favsLoaded, setFavsLoaded] = useState(false);
 
-  const shopsQuery = useQuery<Shop[]>({ queryKey: ["/api/shops"] });
+  const shopsQuery = useQuery<Shop[]>({ queryKey: ["shops"], queryFn: fetchShops });
   const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
 
   React.useEffect(() => {
@@ -113,10 +114,10 @@ export default function HomeScreen() {
     return shopsQuery.data
       .map((shop) => ({
         shop,
-        distance: getDistance(userLat, userLng, shop.lat, shop.lng),
+        distance: getDistance(location.lat, location.lng, shop.lat, shop.lng),
       }))
       .sort((a, b) => a.distance - b.distance);
-  }, [shopsQuery.data, userLat, userLng]);
+  }, [shopsQuery.data, location.lat, location.lng]);
 
   const toggleFav = useCallback(async (shopId: string) => {
     try {
@@ -147,11 +148,19 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hi {firstName}</Text>
           <Pressable style={styles.locationRow} onPress={() => router.push("/address/manage")}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.locationText} numberOfLines={1}>New Delhi, India</Text>
+            <Text style={styles.locationText} numberOfLines={1}>{location.address || "Locating..."}</Text>
             <Ionicons name="chevron-down" size={12} color={Colors.textMuted} />
           </Pressable>
         </View>
       </View>
+
+      {permissionDenied && (
+        <View style={styles.permBanner}>
+          <Text style={styles.permBannerText}>
+            \ud83d\udccd Enable location for accurate distances
+          </Text>
+        </View>
+      )}
 
       {shopsQuery.isLoading ? (
         <View style={styles.loadingContainer}>
@@ -219,6 +228,20 @@ const styles = StyleSheet.create({
     fontFamily: "NunitoSans_600SemiBold",
     color: Colors.textSecondary,
     maxWidth: 200,
+  },
+  permBanner: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 10,
+  },
+  permBannerText: {
+    fontSize: 12,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, padding: 40 },

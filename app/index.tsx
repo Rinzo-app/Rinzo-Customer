@@ -1,21 +1,28 @@
 import { useEffect } from "react";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import Colors from "@/constants/colors";
 
 export default function IndexScreen() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, userStatus } = useAuth();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (isAuthenticated) {
-        router.replace("/(tabs)");
-      } else {
-        router.replace("/login");
-      }
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
     }
-  }, [isLoading, isAuthenticated]);
+
+    if (userStatus === "PENDING" || userStatus === "SUSPENDED") {
+      router.replace("/status-blocked" as Href);
+      return;
+    }
+
+    // ACTIVE or status not yet loaded — allow entry
+    router.replace("/(tabs)");
+  }, [isLoading, isAuthenticated, userStatus]);
 
   return (
     <View style={styles.container}>
