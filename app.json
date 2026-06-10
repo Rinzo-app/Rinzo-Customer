@@ -42,6 +42,15 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": "https://rinzo.app"
+      },
+      "eas": {
+        "projectId": "56f611b2-ad34-43aa-b0e1-9366d12adc9e"
+      }
+    },
+    "owner": "rinzoadmin"
   }
 }
