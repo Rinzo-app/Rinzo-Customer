@@ -6,7 +6,7 @@ import {
   getReactNativePersistence,
 } from "firebase/auth";
 import type { Persistence } from "firebase/auth";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // getReactNativePersistence is exported at runtime via Metro's
 // react-native-specific entry point but missing from the default
@@ -61,18 +61,11 @@ function initFirebase() {
     firebaseAuth = getAuth(firebaseApp);
   } else {
     try {
+      // AsyncStorage, not SecureStore: Firebase persistence keys contain
+      // ':' (invalid for SecureStore) and session blobs exceed its 2 KB
+      // value limit. This matches the standard Firebase RN setup.
       firebaseAuth = initializeAuth(firebaseApp, {
-        persistence: getReactNativePersistence({
-          async getItem(key: string) {
-            return SecureStore.getItemAsync(key);
-          },
-          async setItem(key: string, value: string) {
-            await SecureStore.setItemAsync(key, value);
-          },
-          async removeItem(key: string) {
-            await SecureStore.deleteItemAsync(key);
-          },
-        }),
+        persistence: getReactNativePersistence(AsyncStorage),
       });
     } catch {
       // Already initialised — grab the existing instance
