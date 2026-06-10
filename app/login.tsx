@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Platform,
   ActivityIndicator,
-  Alert,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,52 +20,64 @@ import Colors from "@/constants/colors";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { sendOtp } = useAuth();
-  const [phone, setPhone] = useState("");
+  const { login, signUp } = useAuth();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const formatPhone = (text: string) => {
-    const digits = text.replace(/[^0-9]/g, "");
-    setPhone(digits);
-  };
+  const isSignup = mode === "signup";
+  const canSubmit =
+    email.trim().length > 3 &&
+    password.length >= 6 &&
+    (!isSignup || name.trim().length > 0) &&
+    !loading;
 
-  // TODO: Native phone auth migration
-  // 1. npx expo install @react-native-firebase/app @react-native-firebase/auth
-  // 2. Add to app.json plugins
-  // 3. Configure google-services.json (Android) + GoogleService-Info.plist (iOS)
-  // 4. Replace web signInWithPhoneNumber with native auth().signInWithPhoneNumber()
-  // 5. Remove RecaptchaVerifier (not needed on native)
-
-  const handleSendOtp = async () => {
-    if (phone.length < 10) {
-      Alert.alert("Invalid Number", "Please enter a valid phone number");
-      return;
-    }
-
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
     if (Platform.OS !== "web") {
-      Alert.alert(
-        "Not Available",
-        "Phone sign-in is currently available on the web version only. Native support coming soon.",
-      );
-      return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-
+    setError("");
     setLoading(true);
     try {
-      const fullPhone = phone.startsWith("+") ? phone : `+91${phone}`;
-      await sendOtp(fullPhone);
-      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.push({ pathname: "/verify", params: { phone: fullPhone } });
+      if (isSignup) {
+        await signUp(name.trim(), email.trim(), password);
+      } else {
+        await login(email.trim(), password);
+      }
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      router.replace("/(tabs)");
     } catch (err: any) {
-      Alert.alert("Error", err.message || "Failed to send OTP");
+      setError(err.message || "Something went wrong. Please try again.");
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
-      <View style={styles.content}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) + 40,
+            paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.logoSection}>
           <LinearGradient
             colors={[Colors.primaryMuted, "transparent"]}
@@ -77,68 +90,113 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>Premium laundry, at your doorstep</Text>
         </View>
 
-        <View style={styles.inputSection}>
-          <Text style={styles.label}>Phone Number</Text>
-          <View style={styles.phoneRow}>
-            <View style={styles.countryCode}>
-              <Text style={styles.countryCodeText}>+91</Text>
+        <View style={styles.form}>
+          {!!error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={18} color="#FF6B81" />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
+          )}
+
+          {isSignup && (
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Your name"
+                placeholderTextColor={Colors.textMuted}
+                value={name}
+                onChangeText={(t) => { setName(t); setError(""); }}
+                autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+          )}
+
+          <View style={styles.inputWrapper}>
+            <Ionicons name="mail-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="1234567890"
+              placeholder="Email address"
               placeholderTextColor={Colors.textMuted}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={formatPhone}
-              maxLength={10}
-              autoFocus
+              value={email}
+              onChangeText={(t) => { setEmail(t); setError(""); }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
             />
           </View>
+
+          <View style={styles.inputWrapper}>
+            <Ionicons name="lock-closed-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder="Password (min 6 characters)"
+              placeholderTextColor={Colors.textMuted}
+              value={password}
+              onChangeText={(t) => { setPassword(t); setError(""); }}
+              secureTextEntry={!showPassword}
+              editable={!loading}
+            />
+            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color={Colors.textMuted}
+              />
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              !canSubmit && styles.buttonDisabled,
+              pressed && canSubmit && styles.buttonPressed,
+            ]}
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+          >
+            {loading ? (
+              <ActivityIndicator color={Colors.textInverse} />
+            ) : (
+              <Text style={styles.buttonText}>
+                {isSignup ? "Create Account" : "Sign In"}
+              </Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            onPress={() => { setMode(isSignup ? "signin" : "signup"); setError(""); }}
+            disabled={loading}
+            hitSlop={8}
+          >
+            <Text style={styles.switchModeText}>
+              {isSignup
+                ? "Already have an account? Sign in"
+                : "New here? Create an account"}
+            </Text>
+          </Pressable>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            phone.length < 10 && styles.buttonDisabled,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={handleSendOtp}
-          disabled={phone.length < 10 || loading}
-        >
-          {loading ? (
-            <ActivityIndicator color={Colors.textInverse} />
-          ) : (
-            <Text style={styles.buttonText}>Continue</Text>
-          )}
-        </Pressable>
-
-        <Text style={styles.hint}>
-          We'll send you a 6-digit code to verify
-        </Text>
-      </View>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
         <Text style={styles.footerText}>
           By continuing, you agree to our Terms & Privacy Policy
         </Text>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: Colors.background },
   container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 28,
     justifyContent: "center",
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 40,
     position: "relative",
   },
   logoBg: {
@@ -171,48 +229,45 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
-  inputSection: {
-    marginBottom: 20,
+  form: {
+    gap: 12,
   },
-  label: {
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255, 107, 129, 0.1)",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 129, 0.25)",
+  },
+  errorText: {
     fontSize: 13,
     fontFamily: "NunitoSans_600SemiBold",
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    color: "#FF6B81",
+    flex: 1,
   },
-  phoneRow: {
+  inputWrapper: {
     flexDirection: "row",
-    gap: 10,
-  },
-  countryCode: {
+    alignItems: "center",
     height: 54,
-    width: 68,
     borderRadius: 14,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 14,
   },
-  countryCodeText: {
-    fontSize: 16,
-    fontFamily: "NunitoSans_700Bold",
-    color: Colors.text,
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    height: 54,
-    borderRadius: 14,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 16,
-    fontSize: 20,
-    fontFamily: "NunitoSans_700Bold",
+    fontSize: 16,
+    fontFamily: "NunitoSans_600SemiBold",
     color: Colors.text,
-    letterSpacing: 3,
+    height: "100%",
   },
   button: {
     height: 54,
@@ -220,6 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 4,
   },
   buttonDisabled: {
     backgroundColor: Colors.border,
@@ -233,20 +289,18 @@ const styles = StyleSheet.create({
     fontFamily: "NunitoSans_700Bold",
     color: Colors.textInverse,
   },
-  hint: {
-    fontSize: 13,
-    fontFamily: "NunitoSans_400Regular",
-    color: Colors.textMuted,
+  switchModeText: {
+    fontSize: 14,
+    fontFamily: "NunitoSans_700Bold",
+    color: Colors.primary,
     textAlign: "center",
-    marginTop: 14,
-  },
-  footer: {
-    paddingHorizontal: 28,
+    marginTop: 10,
   },
   footerText: {
     fontSize: 12,
     fontFamily: "NunitoSans_400Regular",
     color: Colors.textMuted,
     textAlign: "center",
+    marginTop: 28,
   },
 });

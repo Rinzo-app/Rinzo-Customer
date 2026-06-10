@@ -8,14 +8,14 @@ import React, {
   useMemo,
   ReactNode,
 } from "react";
-import { Platform, View, AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus } from "react-native";
 import { fetch } from "expo/fetch";
 import {
   onAuthStateChanged,
-  signInWithPhoneNumber,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signOut,
   updateProfile,
-  RecaptchaVerifier,
 } from "firebase/auth";
 import {
   isFirebaseConfigured,
@@ -42,8 +42,8 @@ interface AuthContextValue {
   customer: CustomerInfo | null;
   token: string | null;
   userStatus: UserStatus | null;
-  login: (phone: string, otp: string) => Promise<void>;
-  sendOtp: (phone: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateName: (name: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -57,9 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
 
-  // Stores the ConfirmationResult between sendOtp → login calls
-  const confirmationResultRef = useRef<any>(null);
-  const recaptchaVerifierRef = useRef<any>(null);
   const appState = useRef(AppState.currentState);
 
   // ── Fetch user status from backend ─────────────────────
@@ -138,48 +135,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, [firebaseUser, fetchUserStatus]);
 
-  // ── Send OTP via Firebase Phone Auth ───────────────────
-  async function sendOtp(phone: string) {
-    await firebaseReady;
-    const auth = getFirebaseAuth();
-    if (!auth) throw new Error("Firebase is not configured");
-
-    if (Platform.OS === "web") {
-      // Invisible reCAPTCHA — attaches to the container rendered below
-      if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = new RecaptchaVerifier(
-          auth,
-          "recaptcha-container",
-          { size: "invisible" },
-        );
-      }
-      confirmationResultRef.current = await signInWithPhoneNumber(
-        auth,
-        phone,
-        recaptchaVerifierRef.current,
-      );
-    } else {
-      // Native builds require @react-native-firebase/auth for SMS verification.
-      // For development, use Expo Web (npx expo start --web).
-      throw new Error(
-        "Firebase Phone Auth on native requires @react-native-firebase/auth. " +
-          "Use Expo Web for development or install the native module.",
-      );
-    }
-  }
-
-  // ── Verify OTP & register with unified backend ─────────
-  async function login(phone: string, otp: string) {
-    if (!confirmationResultRef.current) {
-      throw new Error("No pending OTP verification. Call sendOtp first.");
-    }
-
-    const result = await confirmationResultRef.current.confirm(otp);
-    const user = result.user;
-    const idToken = await user.getIdToken();
-
-    // Auto-register with the unified backend on first login.
-    // 409 (Conflict) means the user already exists — safe to ignore.
+  // ── Register with the unified backend (409 = exists) ───
+  async function registerWithBackend(
+    idToken: string,
+    payload: { name: string; email: string },
+  ): Promise<boolean> {
     try {
       const res = await fetch(
         `${BACKEND_URL}/api/auth/register/customer`,
@@ -189,21 +149,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             "Content-Type": "application/json",
             Authorization: `Bearer ${idToken}`,
           },
-          body: JSON.stringify({
-            name: user.displayName || "",
-            phone: user.phoneNumber || phone,
-          }),
+          body: JSON.stringify(payload),
         },
       );
-      if (!res.ok && res.status !== 409) {
-        console.warn("Backend registration:", res.status);
-      }
+      if (res.ok || res.status === 409) return true;
+      console.warn("Backend registration:", res.status);
+      return false;
     } catch (err) {
-      // Non-fatal — the user may already be registered
-      console.warn("Backend registration failed (non-fatal):", err);
+      console.warn("Backend registration failed:", err);
+      return false;
     }
+  }
 
-    // onAuthStateChanged will update firebaseUser & token state
+  // ── Email / password sign-in ────────────────────────────
+  async function login(email: string, password: string) {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error("Firebase is not configured");
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged updates firebaseUser, token, and status
+    } catch (err: any) {
+      const code = err?.code || "";
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+        throw new Error("Invalid email or password");
+      } else if (code === "auth/user-not-found") {
+        throw new Error("No account found with this email");
+      } else if (code === "auth/too-many-requests") {
+        throw new Error("Too many attempts. Please try again later");
+      } else if (code === "auth/invalid-email") {
+        throw new Error("Please enter a valid email");
+      } else if (code === "auth/network-request-failed") {
+        throw new Error("Network error. Please check your connection");
+      }
+      throw new Error("Sign in failed. Please try again");
+    }
+  }
+
+  // ── Email / password sign-up ────────────────────────────
+  async function signUp(name: string, email: string, password: string) {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error("Firebase is not configured");
+
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name }).catch(() => {});
+
+      const idToken = await cred.user.getIdToken();
+      const registered = await registerWithBackend(idToken, { name, email });
+      if (!registered) {
+        // Roll back the orphaned Firebase account so the user can retry
+        await cred.user.delete().catch(() => {});
+        throw new Error("REGISTRATION_FAILED");
+      }
+      setFirebaseUser({ ...cred.user });
+      await fetchUserStatus();
+    } catch (err: any) {
+      const code = err?.code || "";
+      if (code === "auth/email-already-in-use") {
+        throw new Error("An account with this email already exists — sign in instead");
+      } else if (code === "auth/weak-password") {
+        throw new Error("Password is too weak — use at least 6 characters");
+      } else if (code === "auth/invalid-email") {
+        throw new Error("Please enter a valid email");
+      } else if (code === "auth/network-request-failed") {
+        throw new Error("Network error. Please check your connection");
+      } else if (err?.message === "REGISTRATION_FAILED") {
+        throw new Error("Could not create your account. Please try again");
+      }
+      throw new Error("Sign up failed. Please try again");
+    }
   }
 
   // ── Logout ─────────────────────────────────────────────
@@ -217,8 +234,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error("Logout error:", err);
     }
-    confirmationResultRef.current = null;
-    recaptchaVerifierRef.current = null;
     setFirebaseUser(null);
     setToken(null);
     setUserStatus(null);
@@ -255,7 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token,
       userStatus,
       login,
-      sendOtp,
+      signUp,
       logout,
       updateName,
       refreshProfile,
@@ -265,13 +280,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {/* Invisible reCAPTCHA container for Firebase Phone Auth (web) */}
-      {Platform.OS === "web" && (
-        <View
-          nativeID="recaptcha-container"
-          style={{ position: "absolute", opacity: 0, pointerEvents: "none" }}
-        />
-      )}
       {children}
     </AuthContext.Provider>
   );
