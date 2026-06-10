@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import * as Crypto from "expo-crypto";
 import { queryClient } from "@/lib/query-client";
 import { placeOrder } from "@/lib/api";
 import { useCart } from "@/lib/cart-context";
@@ -51,6 +52,9 @@ export default function NewOrderScreen() {
     shopId: string; items?: string; reorderItems?: string;
   }>();
   const { clearCart } = useCart();
+  // One key per checkout screen — double-taps and network retries
+  // replay the same order on the backend instead of duplicating it.
+  const idempotencyKeyRef = useRef(Crypto.randomUUID());
 
   const parsedItems = useMemo(() => {
     try {
@@ -85,6 +89,7 @@ export default function NewOrderScreen() {
         deliveryAddress: addressLine,
         pickupDate: days[selectedDate].date,
         pickupSlot: selectedSlot || undefined,
+        idempotencyKey: idempotencyKeyRef.current,
       });
     },
     onSuccess: (data) => {
@@ -99,6 +104,7 @@ export default function NewOrderScreen() {
   });
 
   const handlePlaceOrder = () => {
+    if (orderMutation.isPending) return; // guard double-taps client-side too
     if (!selectedSlot) {
       Alert.alert("Select Time", "Please select a pickup time slot");
       return;
