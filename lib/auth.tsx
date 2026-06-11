@@ -118,16 +118,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         unsubscribe = onAuthStateChanged(auth, async (user: any) => {
+          // During sign-up the Firebase account exists before the backend
+          // row does — becoming "authenticated" here lets screens mount
+          // and fire queries into that 401 window. signUp() owns all
+          // state updates until it completes.
+          if (user && isRegistering.current) {
+            setIsLoading(false);
+            return;
+          }
+
           setFirebaseUser(user);
           if (user) {
             const idToken = await user.getIdToken();
             setToken(idToken);
-            // During sign-up, signUp() fetches status itself once the
-            // backend row exists — don't race it here.
-            if (isRegistering.current) {
-              setIsLoading(false);
-              return;
-            }
             await fetchUserStatus();
             // Register this device for push notifications (never throws)
             registerForPushNotifications();
