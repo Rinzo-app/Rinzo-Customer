@@ -82,6 +82,10 @@ export default function NewOrderScreen() {
     mutationFn: async () => {
       const selectedAddr = addressesQuery.data?.find((a) => a.id === activeAddressId);
       const addressLine = selectedAddr?.addressLine || "Pickup address";
+      // Send the address's GPS coordinates — they drive the delivery
+      // fee and rider assignment. Addresses saved without GPS simply
+      // omit them (backend charges the fallback fee).
+      const hasCoords = selectedAddr?.lat != null && selectedAddr?.lng != null;
       return placeOrder({
         shopId,
         items: parsedItems.map((i: any) => ({ serviceId: i.serviceId, quantity: i.quantity })),
@@ -90,6 +94,7 @@ export default function NewOrderScreen() {
         pickupDate: days[selectedDate].date,
         pickupSlot: selectedSlot || undefined,
         idempotencyKey: idempotencyKeyRef.current,
+        ...(hasCoords ? { pickupLat: selectedAddr!.lat, pickupLng: selectedAddr!.lng } : {}),
       });
     },
     onSuccess: (data) => {

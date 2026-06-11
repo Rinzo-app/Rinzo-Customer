@@ -75,6 +75,9 @@ export async function placeOrder(payload: {
   pickupSlot?: string;
   /** One key per checkout attempt — backend dedupes double-submissions */
   idempotencyKey?: string;
+  /** Customer GPS — drives delivery fee + rider proximity */
+  pickupLat?: number;
+  pickupLng?: number;
 }): Promise<any> {
   const data = await request("POST", "/api/orders", payload);
   // createOrder returns { order, items }

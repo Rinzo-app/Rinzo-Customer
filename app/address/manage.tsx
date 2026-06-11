@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
+import * as Location from "expo-location";
 import { apiRequest, queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 import type { Address } from "@/lib/types";
@@ -27,18 +28,42 @@ export default function AddressManageScreen() {
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState("Home");
   const [addressLine, setAddressLine] = useState("");
-  const [lat, setLat] = useState("28.6139");
-  const [lng, setLng] = useState("77.2090");
+  // Real GPS only — never fabricate coordinates. Delivery fees and
+  // rider assignment depend on them being honest (or absent).
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
 
   const addressesQuery = useQuery<Address[]>({ queryKey: ["/api/addresses"] });
+
+  const captureLocation = async () => {
+    setLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Location needed",
+          "Allow location access so we can calculate your delivery fee accurately.",
+        );
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("Location failed", "Could not get your location. You can still save the address without it.");
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const addMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/addresses", {
         label,
         addressLine: addressLine.trim(),
-        lat: parseFloat(lat),
-        lng: parseFloat(lng),
+        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
         isDefault: !addressesQuery.data || addressesQuery.data.length === 0,
       });
     },
@@ -46,6 +71,7 @@ export default function AddressManageScreen() {
       queryClient.invalidateQueries({ queryKey: ["/api/addresses"] });
       setShowForm(false);
       setAddressLine("");
+      setCoords(null);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
     onError: (err: Error) => Alert.alert("Error", err.message),
@@ -166,6 +192,28 @@ export default function AddressManageScreen() {
               multiline
               numberOfLines={3}
             />
+
+            <Text style={styles.formLabel}>Location (for delivery fee)</Text>
+            <Pressable
+              style={[styles.locateBtn, coords && styles.locateBtnDone]}
+              onPress={captureLocation}
+              disabled={locating}
+            >
+              {locating ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <Ionicons
+                  name={coords ? "checkmark-circle" : "locate"}
+                  size={18}
+                  color={coords ? "#22C55E" : Colors.primary}
+                />
+              )}
+              <Text style={[styles.locateText, coords && styles.locateTextDone]}>
+                {coords
+                  ? `Location captured (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`
+                  : "Use my current location"}
+              </Text>
+            </Pressable>
 
             <Pressable
               style={[styles.saveAddrBtn, (!addressLine.trim()) && styles.saveBtnDisabled]}
@@ -303,6 +351,20 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     minHeight: 80,
   },
+  locateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  locateBtnDone: { borderColor: "#22C55E" },
+  locateText: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary, flex: 1 },
+  locateTextDone: { color: "#22C55E" },
   saveAddrBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,

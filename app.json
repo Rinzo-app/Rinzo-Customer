@@ -36,6 +36,12 @@
       ],
       "expo-font",
       "expo-notifications",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Rinzo uses your location to calculate accurate delivery fees for your address."
+        }
+      ],
       "expo-web-browser",
       "expo-secure-store"
     ],
