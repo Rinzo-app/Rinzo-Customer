@@ -59,6 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
 
   const appState = useRef(AppState.currentState);
+  // True while signUp() runs. createUserWithEmailAndPassword fires
+  // onAuthStateChanged immediately, which would fetch /api/auth/me
+  // before the backend row exists (→ 401 → destructive sign-out).
+  const isRegistering = useRef(false);
 
   // ── Fetch user status from backend ─────────────────────
   const fetchUserStatus = useCallback(async () => {
@@ -118,7 +122,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (user) {
             const idToken = await user.getIdToken();
             setToken(idToken);
-            // Fetch user status from backend after auth
+            // During sign-up, signUp() fetches status itself once the
+            // backend row exists — don't race it here.
+            if (isRegistering.current) {
+              setIsLoading(false);
+              return;
+            }
             await fetchUserStatus();
             // Register this device for push notifications (never throws)
             registerForPushNotifications();
@@ -213,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase is not configured");
 
+    isRegistering.current = true;
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name }).catch(() => {});
@@ -225,7 +235,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("REGISTRATION_FAILED");
       }
       setFirebaseUser({ ...cred.user });
+      setToken(idToken);
+      // Backend row now exists — safe to fetch status.
       await fetchUserStatus();
+      registerForPushNotifications();
     } catch (err: any) {
       const code = err?.code || "";
       if (code === "auth/email-already-in-use") {
@@ -240,6 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Could not create your account. Please try again");
       }
       throw new Error("Sign up failed. Please try again");
+    } finally {
+      isRegistering.current = false;
     }
   }
 
