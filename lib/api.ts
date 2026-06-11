@@ -15,6 +15,7 @@ export async function fetchShops(): Promise<any[]> {
 const STATUS_MAP: Record<string, string> = {
   PLACED: "placed",
   SHOP_ACCEPTED: "confirmed",
+  PICKUP_OFFERED: "confirmed",
   PICKUP_ASSIGNED: "picked_up",
   PICKED_UP_FROM_CUSTOMER: "picked_up",
   AT_SHOP: "washing",
