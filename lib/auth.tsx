@@ -8,7 +8,7 @@ import React, {
   useMemo,
   ReactNode,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { Alert, AppState, AppStateStatus } from "react-native";
 import { fetch } from "expo/fetch";
 import {
   onAuthStateChanged,
@@ -63,7 +63,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Fetch user status from backend ─────────────────────
   const fetchUserStatus = useCallback(async () => {
     try {
-      const data = await request<{ status?: string }>("GET", "/api/auth/me");
+      const data = await request<{ status?: string; role?: string }>("GET", "/api/auth/me");
+
+      // One account = one role. This app is for customers only —
+      // shop owners and riders have their own apps.
+      if (data.role && data.role !== "CUSTOMER") {
+        const appName = data.role === "SHOP_OWNER" ? "Rinzo Owner app" : "Rinzo Rider app";
+        Alert.alert(
+          "Wrong app for this account",
+          `This account is registered as a ${data.role.toLowerCase().replace("_", " ")} — please use the ${appName}.`,
+        );
+        const auth = getFirebaseAuth();
+        if (auth) await signOut(auth).catch(() => {});
+        setFirebaseUser(null);
+        setToken(null);
+        setUserStatus(null);
+        return null;
+      }
+
       const status = (data.status as UserStatus) || "ACTIVE";
       setUserStatus(status);
       return status;
