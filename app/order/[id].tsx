@@ -44,7 +44,14 @@ export default function OrderDetailScreen() {
   const [disputeDescription, setDisputeDescription] = useState("");
   const [disputeError, setDisputeError] = useState("");
 
-  const orderQuery = useQuery<any>({ queryKey: ["order", id], queryFn: () => fetchOrder(id!) });
+  const orderQuery = useQuery<any>({
+    queryKey: ["order", id],
+    queryFn: () => fetchOrder(id!),
+    // Live tracking: the shop/rider advance the order from their apps,
+    // so poll while this screen is open (stale status also kept showing
+    // a cancel button the backend would reject).
+    refetchInterval: 15000,
+  });
   const order = orderQuery.data;
 
   const cancelMutation = useMutation({

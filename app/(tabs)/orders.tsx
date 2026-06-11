@@ -82,7 +82,12 @@ function OrderCard({ order }: { order: any }) {
 
 export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
-  const ordersQuery = useQuery<any[]>({ queryKey: ["customer-orders"], queryFn: fetchCustomerOrders });
+  const ordersQuery = useQuery<any[]>({
+    queryKey: ["customer-orders"],
+    queryFn: fetchCustomerOrders,
+    // Statuses advance from the shop/rider apps — keep the list fresh.
+    refetchInterval: 30000,
+  });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + (Platform.OS === "web" ? 67 : 0) }]}>
