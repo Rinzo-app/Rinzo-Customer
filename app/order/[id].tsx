@@ -15,7 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchOrder, cancelOrder, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import { fetchOrder, cancelOrder, approveAdjustment, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 
@@ -62,6 +62,17 @@ export default function OrderDetailScreen() {
     },
     onError: (err: Error) => {
       Alert.alert("Cancel Failed", err.message);
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: () => approveAdjustment(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
+      orderQuery.refetch();
+    },
+    onError: (err: Error) => {
+      Alert.alert("Approval Failed", err.message);
     },
   });
 
@@ -193,16 +204,52 @@ export default function OrderDetailScreen() {
           </View>
         </View>
 
+        {order.adjustmentStatus === "PENDING" && order.proposedTotalAmount != null && (
+          <View style={styles.approvalCard}>
+            <View style={styles.approvalHeader}>
+              <Ionicons name="scale-outline" size={20} color="#FFB020" />
+              <Text style={styles.approvalTitle}>Price updated after weighing</Text>
+            </View>
+            <Text style={styles.approvalText}>
+              Your laundry weighed more than estimated. The new total is{" "}
+              <Text style={styles.approvalNew}>{"\u20B9"}{order.proposedTotalAmount}</Text>
+              {" "}(estimated {"\u20B9"}{order.originalTotalAmount ?? order.total}).
+              Approve to continue \u2014 your order is on hold until then.
+            </Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.approvalBtn,
+                pressed && { opacity: 0.85 },
+                approveMutation.isPending && { opacity: 0.6 },
+              ]}
+              onPress={() => approveMutation.mutate()}
+              disabled={approveMutation.isPending}
+            >
+              {approveMutation.isPending ? (
+                <ActivityIndicator color={Colors.textInverse} size="small" />
+              ) : (
+                <Text style={styles.approvalBtnText}>Approve New Price</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
+
         <View style={styles.detailSection}>
           <Text style={styles.detailHeading}>Items</Text>
           <View style={styles.detailCard}>
-            {items.map((item: any, i: number) => (
-              <View key={i} style={[styles.itemRow, i < items.length - 1 && styles.itemBorder]}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemQty}>x{item.quantity}</Text>
-                <Text style={styles.itemPrice}>{"\u20B9"}{item.price * item.quantity}</Text>
-              </View>
-            ))}
+            {items.map((item: any, i: number) => {
+              const qty = item.actualQuantity ?? item.quantity;
+              return (
+                <View key={i} style={[styles.itemRow, i < items.length - 1 && styles.itemBorder]}>
+                  <Text style={styles.itemName}>
+                    {item.name}
+                    {item.actualQuantity != null ? " (weighed)" : ""}
+                  </Text>
+                  <Text style={styles.itemQty}>x{qty}</Text>
+                  <Text style={styles.itemPrice}>{"\u20B9"}{Math.round(item.price * qty)}</Text>
+                </View>
+              );
+            })}
             <View style={styles.totalDivider} />
             <View style={styles.itemRow}>
               <Text style={styles.totalLabel}>Total</Text>
@@ -476,6 +523,31 @@ const styles = StyleSheet.create({
   totalDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
   totalLabel: { flex: 1, fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
+  approvalCard: {
+    backgroundColor: "rgba(255, 176, 32, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 176, 32, 0.35)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  approvalHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  approvalTitle: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: "#FFB020" },
+  approvalText: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.textSecondary,
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  approvalNew: { fontFamily: "NunitoSans_800ExtraBold", color: Colors.text },
+  approvalBtn: {
+    backgroundColor: "#FFB020",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  approvalBtnText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: "#1A1A1A" },
   reorderBigBtn: {
     flexDirection: "row",
     alignItems: "center",

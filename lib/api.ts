@@ -52,6 +52,12 @@ function mapOrder(raw: any): any {
   };
 }
 
+/** POST /api/orders/:id/approve-adjustment — accept the weighed price */
+export async function approveAdjustment(id: string): Promise<any> {
+  const data = await request("POST", `/api/orders/${id}/approve-adjustment`);
+  return mapOrder(data);
+}
+
 // ── Order API ────────────────────────────────────────────
 
 /** GET /api/customer/orders — list the authenticated customer's orders */
