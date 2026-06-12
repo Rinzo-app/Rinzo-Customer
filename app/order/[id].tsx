@@ -15,7 +15,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { fetchOrder, cancelOrder, approveAdjustment, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import * as WebBrowser from "expo-web-browser";
+import { fetchOrder, cancelOrder, approveAdjustment, startPayment, checkPaymentStatus, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
@@ -74,6 +75,37 @@ export default function OrderDetailScreen() {
     },
     onError: (err: Error) => {
       Alert.alert("Approval Failed", err.message);
+    },
+  });
+
+  const payMutation = useMutation({
+    mutationFn: async () => {
+      const { checkoutUrl } = await startPayment(id!);
+      // Hosted gateway checkout in the in-app browser; control
+      // returns here when the user closes/finishes it.
+      await WebBrowser.openBrowserAsync(checkoutUrl);
+      // Confirm with the backend (it asks the gateway). Poll briefly —
+      // gateway confirmation can lag the redirect by a few seconds.
+      for (let i = 0; i < 5; i++) {
+        const s = await checkPaymentStatus(id!);
+        if (s.status !== "PENDING") return s;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      return { status: "PENDING", method: "COD" };
+    },
+    onSuccess: (s) => {
+      orderQuery.refetch();
+      if (s.status === "COLLECTED" || s.status === "SETTLED") {
+        Alert.alert("Payment successful 🎉", "Your order is paid — nothing to pay at delivery.");
+      } else {
+        Alert.alert(
+          "Payment not confirmed",
+          "We couldn't confirm the payment yet. If you completed it, pull to refresh in a moment — otherwise you can pay cash at delivery.",
+        );
+      }
+    },
+    onError: (err: Error) => {
+      Alert.alert("Payment failed to start", err.message);
     },
   });
 
@@ -271,8 +303,41 @@ export default function OrderDetailScreen() {
                 {formatMoney(order.payment?.amount ?? order.total + (order.deliveryFee ?? 0) + (order.platformFee ?? 0))}
               </Text>
             </View>
+            {order.payment?.method === "UPI" &&
+              (order.payment?.status === "COLLECTED" || order.payment?.status === "SETTLED") && (
+              <View style={styles.paidChip}>
+                <Ionicons name="checkmark-circle" size={16} color={Colors.success} />
+                <Text style={styles.paidChipText}>Paid online — nothing due at delivery</Text>
+              </View>
+            )}
           </View>
         </View>
+
+        {order.payment?.status === "PENDING" &&
+          order.adjustmentStatus !== "PENDING" &&
+          !isCancelled &&
+          order.status !== "delivered" && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.payBtn,
+              pressed && { opacity: 0.85 },
+              payMutation.isPending && { opacity: 0.6 },
+            ]}
+            onPress={() => payMutation.mutate()}
+            disabled={payMutation.isPending}
+          >
+            {payMutation.isPending ? (
+              <ActivityIndicator color={Colors.textInverse} />
+            ) : (
+              <>
+                <Ionicons name="flash" size={16} color={Colors.textInverse} />
+                <Text style={styles.payBtnText}>
+                  Pay {formatMoney(order.payment.amount)} now with UPI
+                </Text>
+              </>
+            )}
+          </Pressable>
+        )}
 
         {order.status === "placed" && (
           <Pressable
@@ -541,6 +606,27 @@ const styles = StyleSheet.create({
   totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
   feeLabel: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
   feeValue: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
+  paidChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.successLight,
+  },
+  paidChipText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.success },
+  payBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 16,
+  },
+  payBtnText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
   approvalCard: {
     backgroundColor: "rgba(255, 176, 32, 0.08)",
     borderWidth: 1,

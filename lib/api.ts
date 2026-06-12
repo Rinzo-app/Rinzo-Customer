@@ -62,6 +62,18 @@ export async function quoteOrder(payload: {
   return request("POST", "/api/orders/quote", payload);
 }
 
+/** POST /api/orders/:id/pay — start a UPI payment, returns gateway checkout URL */
+export async function startPayment(id: string): Promise<{ checkoutUrl: string }> {
+  return request("POST", `/api/orders/${id}/pay`);
+}
+
+/** GET /api/orders/:id/payment-status — confirm after returning from the gateway */
+export async function checkPaymentStatus(
+  id: string,
+): Promise<{ status: string; method: string }> {
+  return request("GET", `/api/orders/${id}/payment-status`);
+}
+
 /** POST /api/orders/:id/approve-adjustment — accept the weighed price */
 export async function approveAdjustment(id: string): Promise<any> {
   const data = await request("POST", `/api/orders/${id}/approve-adjustment`);
