@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { fetchOrder, cancelOrder, approveAdjustment, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
 
@@ -212,8 +213,8 @@ export default function OrderDetailScreen() {
             </View>
             <Text style={styles.approvalText}>
               Your laundry weighed more than estimated. The new total is{" "}
-              <Text style={styles.approvalNew}>{"\u20B9"}{order.proposedTotalAmount}</Text>
-              {" "}(estimated {"\u20B9"}{order.originalTotalAmount ?? order.total}).
+              <Text style={styles.approvalNew}>{formatMoney(order.proposedTotalAmount)}</Text>
+              {" "}(estimated {formatMoney(order.originalTotalAmount ?? order.total)}).
               Approve to continue \u2014 your order is on hold until then.
             </Text>
             <Pressable
@@ -246,14 +247,29 @@ export default function OrderDetailScreen() {
                     {item.actualQuantity != null ? " (weighed)" : ""}
                   </Text>
                   <Text style={styles.itemQty}>x{qty}</Text>
-                  <Text style={styles.itemPrice}>{"\u20B9"}{Math.round(item.price * qty)}</Text>
+                  <Text style={styles.itemPrice}>{formatMoney(Math.round(item.price * qty))}</Text>
                 </View>
               );
             })}
             <View style={styles.totalDivider} />
             <View style={styles.itemRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalPrice}>{"\u20B9"}{order.total}</Text>
+              <Text style={styles.feeLabel}>Items</Text>
+              <Text style={styles.feeValue}>{formatMoney(order.total)}</Text>
+            </View>
+            <View style={styles.itemRow}>
+              <Text style={styles.feeLabel}>Pickup & delivery</Text>
+              <Text style={styles.feeValue}>{formatMoney(order.deliveryFee ?? 0)}</Text>
+            </View>
+            <View style={styles.itemRow}>
+              <Text style={styles.feeLabel}>Platform fee</Text>
+              <Text style={styles.feeValue}>{formatMoney(order.platformFee ?? 0)}</Text>
+            </View>
+            <View style={styles.totalDivider} />
+            <View style={styles.itemRow}>
+              <Text style={styles.totalLabel}>Total to pay</Text>
+              <Text style={styles.totalPrice}>
+                {formatMoney(order.payment?.amount ?? order.total + (order.deliveryFee ?? 0) + (order.platformFee ?? 0))}
+              </Text>
             </View>
           </View>
         </View>
@@ -523,6 +539,8 @@ const styles = StyleSheet.create({
   totalDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
   totalLabel: { flex: 1, fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
+  feeLabel: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  feeValue: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
   approvalCard: {
     backgroundColor: "rgba(255, 176, 32, 0.08)",
     borderWidth: 1,

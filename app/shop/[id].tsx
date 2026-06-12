@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { formatMoney } from "@/lib/money";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
@@ -149,11 +150,7 @@ export default function ShopDetailScreen() {
               <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
               <Text style={styles.metaLabel} numberOfLines={2}>{shop.address}</Text>
             </View>
-            {shop.deliveryFee === 0 && (
-              <View style={styles.freeBadge}>
-                <Text style={styles.freeText}>Free Pickup & Delivery</Text>
-              </View>
-            )}
+            {/* Delivery fee is distance-priced — shown at checkout */}
           </View>
         </View>
 
@@ -173,7 +170,7 @@ export default function ShopDetailScreen() {
                     <Text style={styles.svcName}>{svc.name}</Text>
                     <Text style={styles.svcUnit}>{svc.unit}</Text>
                   </View>
-                  <Text style={styles.svcPrice}>{"\u20B9"}{svc.price}</Text>
+                  <Text style={styles.svcPrice}>{formatMoney(svc.price)}</Text>
                   {qty === 0 ? (
                     <Pressable style={styles.addBtn} onPress={() => updateQty(svc.id, 1)}>
                       <Ionicons name="add" size={16} color={Colors.primary} />
@@ -202,7 +199,7 @@ export default function ShopDetailScreen() {
         <View style={[styles.bottomBar, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
           <View style={styles.bottomInfo}>
             <Text style={styles.bottomItems}>{totalItems} item{totalItems !== 1 ? "s" : ""}</Text>
-            <Text style={styles.bottomTotal}>{"\u20B9"}{totalPrice}</Text>
+            <Text style={styles.bottomTotal}>{formatMoney(totalPrice)}</Text>
           </View>
           <Pressable style={({ pressed }) => [styles.proceedBtn, pressed && { opacity: 0.85 }]} onPress={handleProceed}>
             <Text style={styles.proceedText}>Schedule Pickup</Text>

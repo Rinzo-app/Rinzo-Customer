@@ -16,7 +16,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import * as Crypto from "expo-crypto";
 import { queryClient } from "@/lib/query-client";
-import { placeOrder } from "@/lib/api";
+import { placeOrder, quoteOrder } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
 import type { Address } from "@/lib/types";
@@ -75,8 +76,27 @@ export default function NewOrderScreen() {
   const defaultAddr = addressesQuery.data?.find((a) => a.isDefault);
   const activeAddressId = selectedAddressId || defaultAddr?.id;
 
-  const total = parsedItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
+  const itemsTotal = parsedItems.reduce((s: number, i: any) => s + i.price * i.quantity, 0);
   const itemCount = parsedItems.reduce((s: number, i: any) => s + i.quantity, 0);
+
+  // ── Full price preview (items + delivery + platform fee) ──
+  // Re-quotes when the pickup address changes (delivery fee is
+  // distance-based). Falls back to the items total while loading.
+  const quoteAddr = addressesQuery.data?.find((a) => a.id === activeAddressId);
+  const quoteQuery = useQuery({
+    queryKey: ["order-quote", shopId, itemsParam ?? reorderItems, quoteAddr?.id],
+    queryFn: () =>
+      quoteOrder({
+        shopId: shopId!,
+        items: parsedItems.map((i: any) => ({ serviceId: i.serviceId, quantity: i.quantity })),
+        ...(quoteAddr?.lat != null && quoteAddr?.lng != null
+          ? { pickupLat: quoteAddr.lat, pickupLng: quoteAddr.lng }
+          : {}),
+      }),
+    enabled: !!shopId && parsedItems.length > 0,
+  });
+  const quote = quoteQuery.data;
+  const grandTotal = quote?.total ?? itemsTotal;
 
   const orderMutation = useMutation({
     mutationFn: async () => {
@@ -203,15 +223,35 @@ export default function NewOrderScreen() {
               <View key={i} style={styles.summaryRow}>
                 <Text style={styles.summaryName}>{item.name}</Text>
                 <Text style={styles.summaryQty}>x{item.quantity}</Text>
-                <Text style={styles.summaryPrice}>{"\u20B9"}{item.price * item.quantity}</Text>
+                <Text style={styles.summaryPrice}>{formatMoney(item.price * item.quantity)}</Text>
               </View>
             ))}
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalCount}>{itemCount} items</Text>
-              <Text style={styles.totalPrice}>{"\u20B9"}{total}</Text>
+              <Text style={styles.feeLabel}>Items ({itemCount})</Text>
+              <Text style={styles.feeValue}>{formatMoney(quote?.itemsTotal ?? itemsTotal)}</Text>
             </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.feeLabel}>Pickup & delivery</Text>
+              <Text style={styles.feeValue}>
+                {quote ? formatMoney(quote.deliveryFee) : "\u2026"}
+              </Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.feeLabel}>Platform fee</Text>
+              <Text style={styles.feeValue}>
+                {quote ? formatMoney(quote.platformFee) : "\u2026"}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.summaryRow}>
+              <Text style={styles.totalLabel}>Total to pay</Text>
+              <Text style={styles.totalPrice}>{formatMoney(grandTotal)}</Text>
+            </View>
+            <Text style={styles.weighNote}>
+              Final price may adjust after your laundry is weighed at the shop \u2014
+              you'll be asked to approve any increase over 20%.
+            </Text>
           </View>
         </View>
 
@@ -228,8 +268,8 @@ export default function NewOrderScreen() {
 
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + (Platform.OS === "web" ? 34 : 16) }]}>
         <View style={styles.bottomInfo}>
-          <Text style={styles.bottomLabel}>Total</Text>
-          <Text style={styles.bottomTotal}>{"\u20B9"}{total}</Text>
+          <Text style={styles.bottomLabel}>Total to pay</Text>
+          <Text style={styles.bottomTotal}>{formatMoney(grandTotal)}</Text>
         </View>
         <Pressable
           style={({ pressed }) => [styles.orderBtn, pressed && { opacity: 0.85 }, orderMutation.isPending && { opacity: 0.6 }]}
@@ -344,6 +384,15 @@ const styles = StyleSheet.create({
   summaryPrice: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text, minWidth: 50, textAlign: "right" },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
   totalLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  feeLabel: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
+  feeValue: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
+  weighNote: {
+    fontSize: 11,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.textMuted,
+    lineHeight: 16,
+    marginTop: 8,
+  },
   totalCount: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginRight: 12 },
   totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
   paymentCard: {

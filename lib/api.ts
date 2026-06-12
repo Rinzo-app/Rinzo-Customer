@@ -52,6 +52,16 @@ function mapOrder(raw: any): any {
   };
 }
 
+/** POST /api/orders/quote — full price preview (items + fees) for checkout */
+export async function quoteOrder(payload: {
+  shopId: string;
+  items: { serviceId: string; quantity: number }[];
+  pickupLat?: number;
+  pickupLng?: number;
+}): Promise<{ itemsTotal: number; deliveryFee: number; platformFee: number; total: number }> {
+  return request("POST", "/api/orders/quote", payload);
+}
+
 /** POST /api/orders/:id/approve-adjustment — accept the weighed price */
 export async function approveAdjustment(id: string): Promise<any> {
   const data = await request("POST", `/api/orders/${id}/approve-adjustment`);

@@ -65,20 +65,9 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
           <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
           <Text style={styles.metaText}>{shop.openTime} - {shop.closeTime}</Text>
         </View>
-        {shop.deliveryFee === 0 ? (
-          <View style={styles.freeBadge}>
-            <Text style={styles.freeText}>Free Pickup</Text>
-          </View>
-        ) : (
-          <View style={styles.metaChip}>
-            <Text style={styles.metaText}>{"\u20B9"}{shop.deliveryFee} pickup</Text>
-          </View>
-        )}
-        {shop.minOrder && shop.minOrder > 0 && (
-          <View style={styles.metaChip}>
-            <Text style={styles.metaText}>Min {"\u20B9"}{shop.minOrder}</Text>
-          </View>
-        )}
+        {/* Delivery is distance-priced per order \u2014 the exact fee is
+            shown in the checkout breakdown, so no misleading
+            "free pickup" badges here. */}
       </View>
 
       <Text style={styles.shopAddress} numberOfLines={1}>{shop.address}</Text>

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCustomerOrders } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 import Colors from "@/constants/colors";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -52,7 +53,7 @@ function OrderCard({ order }: { order: any }) {
 
       <View style={styles.orderMid}>
         <Text style={styles.itemCount}>{itemCount} item{itemCount !== 1 ? "s" : ""}</Text>
-        <Text style={styles.orderTotal}>{"\u20B9"}{order.total}</Text>
+        <Text style={styles.orderTotal}>{formatMoney(order.total)}</Text>
       </View>
 
       <View style={styles.orderBottom}>
