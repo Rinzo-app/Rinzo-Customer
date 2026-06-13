@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -41,9 +42,13 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
       onPress={() => router.push({ pathname: "/shop/[id]", params: { id: shop.id } })}
     >
       <View style={styles.shopHeader}>
-        <View style={styles.shopAvatar}>
-          <MaterialCommunityIcons name="washing-machine" size={26} color={Colors.primary} />
-        </View>
+        {shop.imageUrl ? (
+          <Image source={{ uri: shop.imageUrl }} style={styles.shopAvatar} />
+        ) : (
+          <View style={styles.shopAvatar}>
+            <MaterialCommunityIcons name="washing-machine" size={26} color={Colors.primary} />
+          </View>
+        )}
         <View style={styles.shopInfo}>
           <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
           <View style={styles.ratingRow}>

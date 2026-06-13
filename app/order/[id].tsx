@@ -10,6 +10,7 @@ import {
   Alert,
   TextInput,
   Modal,
+  Image,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -241,6 +242,32 @@ export default function OrderDetailScreen() {
                 </View>
               );
             })}
+          </View>
+        )}
+
+        {order.riderName && !isCancelled && order.status !== "placed" && (
+          <View style={styles.riderCard}>
+            {order.riderPhotoUrl ? (
+              <Image source={{ uri: order.riderPhotoUrl }} style={styles.riderPhoto} />
+            ) : (
+              <View style={[styles.riderPhoto, styles.riderPhotoFallback]}>
+                <Ionicons name="person" size={22} color={Colors.primary} />
+              </View>
+            )}
+            <View style={styles.riderInfo}>
+              <Text style={styles.riderLabel}>
+                {order.status === "delivered" ? "Delivered by" : "Your rider"}
+              </Text>
+              <Text style={styles.riderName}>{order.riderName}</Text>
+            </View>
+            <Ionicons name="bicycle" size={22} color={Colors.primary} />
+          </View>
+        )}
+
+        {order.status === "delivered" && order.deliveryProofUrl && (
+          <View style={styles.detailSection}>
+            <Text style={styles.detailHeading}>Proof of Delivery</Text>
+            <Image source={{ uri: order.deliveryProofUrl }} style={styles.proofImage} />
           </View>
         )}
 
@@ -644,6 +671,28 @@ const styles = StyleSheet.create({
   stepLabel: { fontSize: 14, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, paddingTop: 5 },
   stepLabelActive: { fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
   stepLabelCurrent: { fontFamily: "NunitoSans_700Bold", color: Colors.accent },
+  riderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  riderPhoto: { width: 46, height: 46, borderRadius: 23, backgroundColor: Colors.surfaceElevated },
+  riderPhotoFallback: { justifyContent: "center", alignItems: "center" },
+  riderInfo: { flex: 1 },
+  riderLabel: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted },
+  riderName: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text, marginTop: 1 },
+  proofImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceElevated,
+  },
   detailSection: { marginBottom: 16 },
   detailHeading: {
     fontSize: 13,

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  Image,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { formatMoney } from "@/lib/money";
@@ -111,10 +112,18 @@ export default function ShopDetailScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {shop.imageUrl && (
+          <Image source={{ uri: shop.imageUrl }} style={styles.coverImage} />
+        )}
+
         <View style={styles.shopHeaderCard}>
-          <View style={styles.shopIconLarge}>
-            <MaterialCommunityIcons name="washing-machine" size={36} color={Colors.primary} />
-          </View>
+          {shop.imageUrl ? (
+            <Image source={{ uri: shop.imageUrl }} style={styles.shopIconLarge} />
+          ) : (
+            <View style={styles.shopIconLarge}>
+              <MaterialCommunityIcons name="washing-machine" size={36} color={Colors.primary} />
+            </View>
+          )}
           <View style={styles.shopHeaderInfo}>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={15} color={Colors.star} />
@@ -140,6 +149,9 @@ export default function ShopDetailScreen() {
             const qty = selectedItems[svc.id] || 0;
             return (
               <View key={svc.id} style={[styles.serviceRow, i < services.length - 1 && styles.serviceRowBorder]}>
+                {svc.imageUrl && (
+                  <Image source={{ uri: svc.imageUrl }} style={styles.svcThumb} />
+                )}
                 <View style={styles.svcInfo}>
                   <Text style={styles.svcName}>{svc.name}</Text>
                   <Text style={styles.svcUnit}>{svc.unit}</Text>
@@ -240,6 +252,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  coverImage: {
+    width: "100%",
+    height: 160,
+    borderRadius: 18,
+    marginBottom: 14,
+    backgroundColor: Colors.surfaceElevated,
+  },
   shopIconLarge: {
     width: 60,
     height: 60,
@@ -248,6 +267,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,
+  },
+  svcThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: Colors.surfaceElevated,
   },
   shopHeaderInfo: { flex: 1, gap: 5 },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: 4 },

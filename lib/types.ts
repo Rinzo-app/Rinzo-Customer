@@ -26,6 +26,7 @@ export interface Service {
   price: number;
   unit: string;
   category: string;
+  imageUrl?: string | null;
 }
 
 export interface Address {
