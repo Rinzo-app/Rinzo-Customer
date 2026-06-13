@@ -20,19 +20,6 @@ import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
 import type { Shop, Service } from "@/lib/types";
 
-const CATEGORY_LABELS: Record<string, string> = {
-  wash: "Wash & Fold",
-  dryclean: "Dry Clean",
-  iron: "Iron & Press",
-  special: "Special Care",
-};
-
-const CATEGORY_ICONS: Record<string, string> = {
-  wash: "water-outline",
-  dryclean: "sparkles-outline",
-  iron: "shirt-outline",
-  special: "diamond-outline",
-};
 
 export default function ShopDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,15 +41,6 @@ export default function ShopDetailScreen() {
 
   const shop = shopQuery.data;
   const services = servicesQuery.data || [];
-
-  const groupedServices = React.useMemo(() => {
-    const groups: Record<string, Service[]> = {};
-    services.forEach((s) => {
-      if (!groups[s.category]) groups[s.category] = [];
-      groups[s.category].push(s);
-    });
-    return groups;
-  }, [services]);
 
   const totalItems = Object.values(selectedItems).reduce((s, q) => s + q, 0);
   const totalPrice = services.reduce((sum, svc) => sum + (selectedItems[svc.id] || 0) * svc.price, 0);
@@ -156,41 +134,35 @@ export default function ShopDetailScreen() {
 
         <Text style={styles.servicesHeading}>Services</Text>
 
-        {Object.entries(groupedServices).map(([cat, items]) => (
-          <View key={cat} style={styles.categorySection}>
-            <View style={styles.catHeader}>
-              <Ionicons name={(CATEGORY_ICONS[cat] || "list-outline") as any} size={16} color={Colors.primary} />
-              <Text style={styles.catTitle}>{CATEGORY_LABELS[cat] || cat}</Text>
-            </View>
-            {items.map((svc, i) => {
-              const qty = selectedItems[svc.id] || 0;
-              return (
-                <View key={svc.id} style={[styles.serviceRow, i < items.length - 1 && styles.serviceRowBorder]}>
-                  <View style={styles.svcInfo}>
-                    <Text style={styles.svcName}>{svc.name}</Text>
-                    <Text style={styles.svcUnit}>{svc.unit}</Text>
-                  </View>
-                  <Text style={styles.svcPrice}>{formatMoney(svc.price)}</Text>
-                  {qty === 0 ? (
-                    <Pressable style={styles.addBtn} onPress={() => updateQty(svc.id, 1)}>
-                      <Ionicons name="add" size={16} color={Colors.primary} />
-                    </Pressable>
-                  ) : (
-                    <View style={styles.qtyRow}>
-                      <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, -1)}>
-                        <Ionicons name="remove" size={14} color={Colors.primary} />
-                      </Pressable>
-                      <Text style={styles.qtyText}>{qty}</Text>
-                      <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, 1)}>
-                        <Ionicons name="add" size={14} color={Colors.primary} />
-                      </Pressable>
-                    </View>
-                  )}
+        <View style={styles.categorySection}>
+          {services.map((svc, i) => {
+            const qty = selectedItems[svc.id] || 0;
+            return (
+              <View key={svc.id} style={[styles.serviceRow, i < services.length - 1 && styles.serviceRowBorder]}>
+                <View style={styles.svcInfo}>
+                  <Text style={styles.svcName}>{svc.name}</Text>
+                  <Text style={styles.svcUnit}>{svc.unit}</Text>
                 </View>
-              );
-            })}
-          </View>
-        ))}
+                <Text style={styles.svcPrice}>{formatMoney(svc.price)}</Text>
+                {qty === 0 ? (
+                  <Pressable style={styles.addBtn} onPress={() => updateQty(svc.id, 1)}>
+                    <Ionicons name="add" size={16} color={Colors.primary} />
+                  </Pressable>
+                ) : (
+                  <View style={styles.qtyRow}>
+                    <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, -1)}>
+                      <Ionicons name="remove" size={14} color={Colors.primary} />
+                    </Pressable>
+                    <Text style={styles.qtyText}>{qty}</Text>
+                    <Pressable style={styles.qtyBtn} onPress={() => updateQty(svc.id, 1)}>
+                      <Ionicons name="add" size={14} color={Colors.primary} />
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
 
         <View style={{ height: 130 }} />
       </ScrollView>

@@ -33,6 +33,17 @@ function mapStatus(status: string): string {
 /** Transform a backend order row into the shape the UI expects. */
 function mapOrder(raw: any): any {
   const created = new Date(raw.createdAt);
+  // Prefer the scheduled pickup date the customer chose; fall back to
+  // the order's creation date when the order predates scheduling.
+  let pickupDateLabel: string;
+  if (raw.pickupDate) {
+    const d = new Date(raw.pickupDate);
+    pickupDateLabel = Number.isNaN(d.getTime())
+      ? raw.pickupDate
+      : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  } else {
+    pickupDateLabel = created.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  }
   return {
     ...raw,
     status: mapStatus(raw.status),
@@ -44,11 +55,8 @@ function mapOrder(raw: any): any {
           name: i.serviceName || i.name,
         }))
       : [],
-    pickupDate: created.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-    }),
-    pickupSlot: "",
+    pickupDate: pickupDateLabel,
+    pickupSlot: raw.pickupSlot || "Any time",
   };
 }
 
