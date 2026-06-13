@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
-import { fetchOrder, cancelOrder, approveAdjustment, startPayment, checkPaymentStatus, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import { fetchOrder, cancelOrder, approveAdjustment, startPayment, checkPaymentStatus, submitReview, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
@@ -45,6 +45,10 @@ export default function OrderDetailScreen() {
   const [disputeCategory, setDisputeCategory] = useState("");
   const [disputeDescription, setDisputeDescription] = useState("");
   const [disputeError, setDisputeError] = useState("");
+
+  // ── Rating state ─────────────────────────────────────
+  const [ratingStars, setRatingStars] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
 
   const orderQuery = useQuery<any>({
     queryKey: ["order", id],
@@ -75,6 +79,18 @@ export default function OrderDetailScreen() {
     },
     onError: (err: Error) => {
       Alert.alert("Approval Failed", err.message);
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: () => submitReview(id!, ratingStars, ratingComment.trim() || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
+      orderQuery.refetch();
+      Alert.alert("Thanks for the feedback! ⭐", "Your rating helps other customers.");
+    },
+    onError: (err: Error) => {
+      Alert.alert("Couldn't submit rating", err.message);
     },
   });
 
@@ -360,6 +376,64 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
+        {order.status === "delivered" && (
+          order.reviewRating != null ? (
+            <View style={styles.ratedCard}>
+              <Text style={styles.ratedLabel}>Your rating</Text>
+              <View style={styles.starRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Ionicons
+                    key={n}
+                    name={n <= order.reviewRating ? "star" : "star-outline"}
+                    size={22}
+                    color={n <= order.reviewRating ? "#FFB020" : Colors.textMuted}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : (
+            <View style={styles.rateCard}>
+              <Text style={styles.rateTitle}>Rate {order.shopName}</Text>
+              <Text style={styles.rateSub}>How was your laundry experience?</Text>
+              <View style={styles.starRow}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <Pressable key={n} onPress={() => setRatingStars(n)} hitSlop={6}>
+                    <Ionicons
+                      name={n <= ratingStars ? "star" : "star-outline"}
+                      size={34}
+                      color={n <= ratingStars ? "#FFB020" : Colors.textMuted}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.rateInput}
+                placeholder="Add a comment (optional)"
+                placeholderTextColor={Colors.textMuted}
+                value={ratingComment}
+                onChangeText={setRatingComment}
+                multiline
+                maxLength={500}
+              />
+              <Pressable
+                style={({ pressed }) => [
+                  styles.rateSubmit,
+                  (ratingStars === 0 || reviewMutation.isPending) && styles.rateSubmitDisabled,
+                  pressed && { opacity: 0.85 },
+                ]}
+                onPress={() => reviewMutation.mutate()}
+                disabled={ratingStars === 0 || reviewMutation.isPending}
+              >
+                {reviewMutation.isPending ? (
+                  <ActivityIndicator color={Colors.textInverse} size="small" />
+                ) : (
+                  <Text style={styles.rateSubmitText}>Submit rating</Text>
+                )}
+              </Pressable>
+            </View>
+          )
+        )}
+
         {(order.status === "delivered" || order.status === "cancelled") && (
           <Pressable
             style={({ pressed }) => [styles.reorderBigBtn, pressed && { opacity: 0.85 }]}
@@ -606,6 +680,53 @@ const styles = StyleSheet.create({
   totalPrice: { fontSize: 20, fontFamily: "NunitoSans_800ExtraBold", color: Colors.accent },
   feeLabel: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
   feeValue: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },
+  rateCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 18,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  rateTitle: { fontSize: 16, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  rateSub: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginTop: 2, marginBottom: 12 },
+  starRow: { flexDirection: "row", gap: 6 },
+  rateInput: {
+    width: "100%",
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    marginTop: 14,
+    minHeight: 60,
+    fontSize: 14,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.text,
+    textAlignVertical: "top",
+  },
+  rateSubmit: {
+    width: "100%",
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginTop: 14,
+  },
+  rateSubmitDisabled: { opacity: 0.5 },
+  rateSubmitText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
+  ratedCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  ratedLabel: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
   paidChip: {
     flexDirection: "row",
     alignItems: "center",

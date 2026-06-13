@@ -30,6 +30,7 @@ export default function ShopDetailScreen() {
 
   const shopQuery = useQuery<Shop>({ queryKey: [`/api/shops/${id}`] });
   const servicesQuery = useQuery<Service[]>({ queryKey: [`/api/shops/${id}/services`] });
+  const reviewsQuery = useQuery<any[]>({ queryKey: [`/api/shops/${id}/reviews`] });
   const favQuery = useQuery({
     queryKey: [`/api/favorites/${id}/check`],
     select: (data: any) => data.isFavorite,
@@ -164,6 +165,35 @@ export default function ShopDetailScreen() {
           })}
         </View>
 
+        {reviewsQuery.data && reviewsQuery.data.length > 0 && (
+          <>
+            <Text style={styles.servicesHeading}>Reviews</Text>
+            <View style={styles.categorySection}>
+              {reviewsQuery.data.slice(0, 10).map((rev, i) => (
+                <View
+                  key={rev.id}
+                  style={[styles.reviewRow, i < Math.min(reviewsQuery.data!.length, 10) - 1 && styles.serviceRowBorder]}
+                >
+                  <View style={styles.reviewHead}>
+                    <Text style={styles.reviewName}>{rev.customerName}</Text>
+                    <View style={styles.reviewStars}>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Ionicons
+                          key={n}
+                          name={n <= rev.rating ? "star" : "star-outline"}
+                          size={13}
+                          color={n <= rev.rating ? "#FFB020" : Colors.textMuted}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                  {!!rev.comment && <Text style={styles.reviewComment}>{rev.comment}</Text>}
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
         <View style={{ height: 130 }} />
       </ScrollView>
 
@@ -241,6 +271,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     overflow: "hidden",
   },
+  reviewRow: { paddingHorizontal: 16, paddingVertical: 12 },
+  reviewHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  reviewName: { fontSize: 14, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  reviewStars: { flexDirection: "row", gap: 2 },
+  reviewComment: { fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginTop: 4 },
   catHeader: {
     flexDirection: "row",
     alignItems: "center",

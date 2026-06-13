@@ -82,6 +82,20 @@ export async function checkPaymentStatus(
   return request("GET", `/api/orders/${id}/payment-status`);
 }
 
+/** POST /api/orders/:id/review — rate a delivered order's shop (1–5) */
+export async function submitReview(
+  id: string,
+  rating: number,
+  comment?: string,
+): Promise<any> {
+  return request("POST", `/api/orders/${id}/review`, { rating, comment });
+}
+
+/** GET /api/shops/:id/reviews — recent reviews for a shop */
+export async function fetchShopReviews(shopId: string): Promise<any[]> {
+  return request("GET", `/api/shops/${shopId}/reviews`);
+}
+
 /** POST /api/orders/:id/approve-adjustment — accept the weighed price */
 export async function approveAdjustment(id: string): Promise<any> {
   const data = await request("POST", `/api/orders/${id}/approve-adjustment`);
