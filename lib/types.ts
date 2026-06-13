@@ -16,6 +16,7 @@ export interface Shop {
   isActive: boolean;
   minOrder: number | null;
   deliveryFee: number | null;
+  serviceRadiusKm: number | null;
 }
 
 export interface Service {

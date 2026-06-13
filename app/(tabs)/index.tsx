@@ -100,13 +100,20 @@ export default function HomeScreen() {
 
   const sortedShops = useMemo(() => {
     if (!shopsQuery.data) return [];
-    return shopsQuery.data
+    const withDistance = shopsQuery.data
       .map((shop) => ({
         shop,
         distance: getDistance(location.lat, location.lng, shop.lat, shop.lng),
       }))
       .sort((a, b) => a.distance - b.distance);
-  }, [shopsQuery.data, location.lat, location.lng]);
+    // Only hide out-of-range shops when we trust the user's location.
+    // With permission denied we fall back to a default point and can't
+    // judge distance, so show everything rather than an empty list.
+    if (permissionDenied) return withDistance;
+    return withDistance.filter(
+      ({ shop, distance }) => distance <= (shop.serviceRadiusKm ?? 5),
+    );
+  }, [shopsQuery.data, location.lat, location.lng, permissionDenied]);
 
   const toggleFav = useCallback(async (shopId: string) => {
     try {
