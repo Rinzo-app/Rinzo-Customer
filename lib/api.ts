@@ -103,6 +103,11 @@ export async function approveAdjustment(id: string): Promise<any> {
   return mapOrder(data);
 }
 
+/** DELETE /api/auth/me — permanently delete the signed-in account */
+export async function deleteAccount(): Promise<void> {
+  await request("DELETE", "/api/auth/me");
+}
+
 // ── Order API ────────────────────────────────────────────
 
 /** GET /api/customer/orders — list the authenticated customer's orders */

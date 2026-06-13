@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "@/lib/auth";
-import { fetchMyDisputes, type Dispute } from "@/lib/api";
+import { fetchMyDisputes, deleteAccount, type Dispute } from "@/lib/api";
 import Colors from "@/constants/colors";
 
 function disputeStatusColor(status: string) {
@@ -75,6 +75,29 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Delete account?",
+      "This permanently deletes your account and personal data and cannot be undone. Orders in progress must be completed or cancelled first.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              await logout();
+              router.replace("/login");
+            } catch (e: any) {
+              Alert.alert("Couldn't delete", e?.message || "Please try again.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -176,6 +199,10 @@ export default function ProfileScreen() {
         <Pressable style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={18} color={Colors.error} />
           <Text style={styles.logoutText}>Logout</Text>
+        </Pressable>
+
+        <Pressable style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Text style={styles.deleteText}>Delete account</Text>
         </Pressable>
 
         <Text style={styles.version}>Rinzo v1.0.0</Text>
@@ -334,5 +361,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoutText: { fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.error },
+  deleteBtn: { alignItems: "center", paddingVertical: 12, marginBottom: 8 },
+  deleteText: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textMuted, textDecorationLine: "underline" },
   version: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, textAlign: "center" },
 });
