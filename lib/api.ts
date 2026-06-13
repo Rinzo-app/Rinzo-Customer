@@ -20,6 +20,7 @@ const STATUS_MAP: Record<string, string> = {
   PICKED_UP_FROM_CUSTOMER: "picked_up",
   AT_SHOP: "washing",
   READY: "ready",
+  DELIVERY_OFFERED: "ready",
   OUT_FOR_DELIVERY: "ready",
   DELIVERED: "delivered",
   CANCELLED: "cancelled",
