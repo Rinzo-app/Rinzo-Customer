@@ -16,6 +16,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import {
   isFirebaseConfigured,
@@ -48,6 +49,12 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   updateName: (name: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  /** Whether the signed-in user's email has been verified. */
+  emailVerified: boolean;
+  /** (Re)send the Firebase verification email to the current user. */
+  resendVerification: () => Promise<void>;
+  /** Reload the Firebase user so emailVerified reflects a just-clicked link. */
+  reloadEmailStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -229,6 +236,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(cred.user, { displayName: name }).catch(() => {});
+      // Best-effort verification email; never block signup if it fails.
+      sendEmailVerification(cred.user).catch(() => {});
 
       const idToken = await cred.user.getIdToken();
       const registered = await registerWithBackend(idToken, { name, email });
@@ -278,6 +287,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.clear();
   }
 
+  // ── Email verification ─────────────────────────────────
+  async function resendVerification() {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth?.currentUser) throw new Error("Not authenticated");
+    await sendEmailVerification(auth.currentUser);
+  }
+
+  async function reloadEmailStatus() {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth?.currentUser) return;
+    await auth.currentUser.reload();
+    // Re-render with the refreshed emailVerified flag.
+    setFirebaseUser({ ...auth.currentUser });
+  }
+
   // ── Update display name ────────────────────────────────
   async function updateName(name: string) {
     await firebaseReady;
@@ -312,6 +338,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       updateName,
       refreshProfile,
+      emailVerified: !!firebaseUser?.emailVerified,
+      resendVerification,
+      reloadEmailStatus,
     }),
     [isLoading, firebaseUser, token, userStatus, refreshProfile],
   );

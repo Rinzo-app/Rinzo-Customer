@@ -9,6 +9,8 @@ import {
   Platform,
   RefreshControl,
   Image,
+  AppState,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -87,10 +89,32 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { customer } = useAuth();
+  const { customer, emailVerified, resendVerification, reloadEmailStatus } = useAuth();
   const { location, loading: locationLoading, permissionDenied } = useUserLocation();
   const [favSet, setFavSet] = useState<Set<string>>(new Set());
   const [favsLoaded, setFavsLoaded] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+
+  // Refresh verification status on mount + whenever the app returns to
+  // the foreground (the user verifies via a browser link, then comes back).
+  React.useEffect(() => {
+    reloadEmailStatus();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") reloadEmailStatus();
+    });
+    return () => sub.remove();
+  }, [reloadEmailStatus]);
+
+  const handleResend = useCallback(async () => {
+    setResendState("sending");
+    try {
+      await resendVerification();
+      setResendState("sent");
+    } catch {
+      setResendState("idle");
+      Alert.alert("Couldn't send", "Please try again in a moment.");
+    }
+  }, [resendVerification]);
 
   const shopsQuery = useQuery<Shop[]>({ queryKey: ["shops"], queryFn: fetchShops });
   const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
@@ -160,6 +184,29 @@ export default function HomeScreen() {
           <Text style={styles.permBannerText}>
             \ud83d\udccd Enable location for accurate distances
           </Text>
+        </View>
+      )}
+
+      {customer && !emailVerified && (
+        <View style={styles.verifyBanner}>
+          <Ionicons name="mail-unread-outline" size={18} color={Colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.verifyTitle}>Verify your email</Text>
+            <Text style={styles.verifyText}>
+              {resendState === "sent"
+                ? "Sent! Tap the link in your inbox, then reopen the app."
+                : `We sent a link to ${customer.email ?? "your email"}. Verify to secure your account.`}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleResend}
+            disabled={resendState === "sending"}
+            style={({ pressed }) => [styles.verifyBtn, pressed && { opacity: 0.7 }]}
+          >
+            <Text style={styles.verifyBtnText}>
+              {resendState === "sending" ? "\u2026" : resendState === "sent" ? "Resend" : "Send"}
+            </Text>
+          </Pressable>
         </View>
       )}
 
@@ -244,6 +291,28 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
+  verifyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderAccent,
+  },
+  verifyTitle: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  verifyText: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary, marginTop: 1 },
+  verifyBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  verifyBtnText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, padding: 40 },
   emptyTitle: { fontSize: 18, fontFamily: "NunitoSans_700Bold", color: Colors.text },
