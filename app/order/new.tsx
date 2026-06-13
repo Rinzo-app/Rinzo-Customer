@@ -22,14 +22,24 @@ import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
 import type { Address } from "@/lib/types";
 
+// Canonical pickup slots — label + end hour (24h, local IST). Kept in
+// sync with the backend (orders.schema.ts), which is the real guard.
 const PICKUP_SLOTS = [
-  "8 - 10 AM",
-  "10 AM - 12 PM",
-  "12 - 2 PM",
-  "2 - 4 PM",
-  "4 - 6 PM",
-  "6 - 8 PM",
+  { label: "8 - 10 AM", end: 10 },
+  { label: "10 AM - 12 PM", end: 12 },
+  { label: "12 - 2 PM", end: 14 },
+  { label: "2 - 4 PM", end: 16 },
+  { label: "4 - 6 PM", end: 18 },
+  { label: "6 - 8 PM", end: 20 },
 ];
+
+/** Local YYYY-MM-DD (NOT toISOString, which is UTC and drifts a day near midnight). */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function getNextDays(count: number) {
   const days = [];
@@ -38,13 +48,24 @@ function getNextDays(count: number) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
     days.push({
-      date: d.toISOString().split("T")[0],
+      date: localDateStr(d),
       label: i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" }),
       day: d.toLocaleDateString("en-IN", { weekday: "short" }),
       num: d.getDate().toString(),
     });
   }
   return days;
+}
+
+/**
+ * A slot is selectable on any future day; on "Today" it must not have
+ * already ended (5-min grace mirrors the backend).
+ */
+function isSlotSelectable(dayIndex: number, slotEnd: number): boolean {
+  if (dayIndex > 0) return true;
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return slotEnd * 60 > nowMinutes - 5;
 }
 
 export default function NewOrderScreen() {
@@ -65,11 +86,18 @@ export default function NewOrderScreen() {
     }
   }, [itemsParam, reorderItems]);
 
-  const [selectedDate, setSelectedDate] = useState(0);
+  const days = useMemo(() => getNextDays(7), []);
+
+  // If every slot today has already passed (e.g. late night), start on
+  // the first day that still has an available slot.
+  const initialDate = useMemo(
+    () => (PICKUP_SLOTS.some((s) => isSlotSelectable(0, s.end)) ? 0 : 1),
+    [],
+  );
+
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-
-  const days = useMemo(() => getNextDays(7), []);
 
   const addressesQuery = useQuery<Address[]>({ queryKey: ["/api/addresses"] });
 
@@ -134,6 +162,13 @@ export default function NewOrderScreen() {
       Alert.alert("Select Time", "Please select a pickup time slot");
       return;
     }
+    // Final guard: the chosen slot must still be in the future.
+    const slot = PICKUP_SLOTS.find((s) => s.label === selectedSlot);
+    if (slot && !isSlotSelectable(selectedDate, slot.end)) {
+      Alert.alert("Time passed", "That pickup time has passed — please pick a later slot.");
+      setSelectedSlot(null);
+      return;
+    }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     orderMutation.mutate();
   };
@@ -188,7 +223,12 @@ export default function NewOrderScreen() {
               <Pressable
                 key={d.date}
                 style={[styles.dayChip, selectedDate === i && styles.dayChipActive]}
-                onPress={() => setSelectedDate(i)}
+                onPress={() => {
+                  setSelectedDate(i);
+                  // Drop the chosen slot if it isn't valid on the new day.
+                  const slot = PICKUP_SLOTS.find((s) => s.label === selectedSlot);
+                  if (slot && !isSlotSelectable(i, slot.end)) setSelectedSlot(null);
+                }}
               >
                 <Text style={[styles.dayLabel, selectedDate === i && styles.dayLabelActive]}>{d.day}</Text>
                 <Text style={[styles.dayNum, selectedDate === i && styles.dayNumActive]}>{d.num}</Text>
@@ -201,18 +241,35 @@ export default function NewOrderScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Pick a Time</Text>
           <View style={styles.slotsGrid}>
-            {PICKUP_SLOTS.map((slot) => (
-              <Pressable
-                key={slot}
-                style={[styles.slotChip, selectedSlot === slot && styles.slotChipActive]}
-                onPress={() => {
-                  if (Platform.OS !== "web") Haptics.selectionAsync();
-                  setSelectedSlot(slot);
-                }}
-              >
-                <Text style={[styles.slotText, selectedSlot === slot && styles.slotTextActive]}>{slot}</Text>
-              </Pressable>
-            ))}
+            {PICKUP_SLOTS.map((slot) => {
+              const selectable = isSlotSelectable(selectedDate, slot.end);
+              const active = selectedSlot === slot.label;
+              return (
+                <Pressable
+                  key={slot.label}
+                  disabled={!selectable}
+                  style={[
+                    styles.slotChip,
+                    active && styles.slotChipActive,
+                    !selectable && styles.slotChipDisabled,
+                  ]}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.selectionAsync();
+                    setSelectedSlot(slot.label);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.slotText,
+                      active && styles.slotTextActive,
+                      !selectable && styles.slotTextDisabled,
+                    ]}
+                  >
+                    {slot.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -369,8 +426,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   slotChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  slotChipDisabled: { opacity: 0.35 },
   slotText: { fontSize: 12, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
   slotTextActive: { color: Colors.textInverse },
+  slotTextDisabled: { textDecorationLine: "line-through" },
   summaryCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
