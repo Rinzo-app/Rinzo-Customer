@@ -41,8 +41,8 @@ export default function AddressManageScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
-          "Location needed",
-          "Allow location access so we can calculate your delivery fee accurately.",
+          "Location required",
+          "Allow location access so riders can find this address and we can calculate the delivery fee. You can enable it in Settings.",
         );
         return;
       }
@@ -52,7 +52,7 @@ export default function AddressManageScreen() {
       setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
-      Alert.alert("Location failed", "Could not get your location. You can still save the address without it.");
+      Alert.alert("Location failed", "Could not get your location. Move to an open area and try again — a location is required to save the address.");
     } finally {
       setLocating(false);
     }
@@ -60,10 +60,12 @@ export default function AddressManageScreen() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
+      if (!coords) throw new Error("Capture your location before saving.");
       await apiRequest("POST", "/api/addresses", {
         label,
         addressLine: addressLine.trim(),
-        ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
+        lat: coords.lat,
+        lng: coords.lng,
         isDefault: !addressesQuery.data || addressesQuery.data.length === 0,
       });
     },
@@ -193,7 +195,7 @@ export default function AddressManageScreen() {
               numberOfLines={3}
             />
 
-            <Text style={styles.formLabel}>Location (for delivery fee)</Text>
+            <Text style={styles.formLabel}>Location (required)</Text>
             <Pressable
               style={[styles.locateBtn, coords && styles.locateBtnDone]}
               onPress={captureLocation}
@@ -214,11 +216,16 @@ export default function AddressManageScreen() {
                   : "Use my current location"}
               </Text>
             </Pressable>
+            {!coords && (
+              <Text style={styles.locateRequiredHint}>
+                Stand at the address and capture your location so riders can find you.
+              </Text>
+            )}
 
             <Pressable
-              style={[styles.saveAddrBtn, (!addressLine.trim()) && styles.saveBtnDisabled]}
+              style={[styles.saveAddrBtn, (!addressLine.trim() || !coords) && styles.saveBtnDisabled]}
               onPress={() => addMutation.mutate()}
-              disabled={!addressLine.trim() || addMutation.isPending}
+              disabled={!addressLine.trim() || !coords || addMutation.isPending}
             >
               {addMutation.isPending ? (
                 <ActivityIndicator color={Colors.textInverse} />
@@ -365,6 +372,7 @@ const styles = StyleSheet.create({
   locateBtnDone: { borderColor: "#22C55E" },
   locateText: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.primary, flex: 1 },
   locateTextDone: { color: "#22C55E" },
+  locateRequiredHint: { fontSize: 12, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginTop: 6 },
   saveAddrBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 14,
