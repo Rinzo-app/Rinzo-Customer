@@ -352,6 +352,12 @@ export default function OrderDetailScreen() {
               <Text style={styles.feeLabel}>Platform fee</Text>
               <Text style={styles.feeValue}>{formatMoney(order.platformFee ?? 0)}</Text>
             </View>
+            {(order.tipAmount ?? 0) > 0 && (
+              <View style={styles.itemRow}>
+                <Text style={styles.feeLabel}>Rider tip</Text>
+                <Text style={styles.feeValue}>{formatMoney(order.tipAmount)}</Text>
+              </View>
+            )}
             <View style={styles.totalDivider} />
             <View style={styles.itemRow}>
               <Text style={styles.totalLabel}>Total to pay</Text>

@@ -135,6 +135,8 @@ export async function placeOrder(payload: {
   /** Customer GPS — drives delivery fee + rider proximity */
   pickupLat?: number;
   pickupLng?: number;
+  /** Optional rider tip (paise). */
+  tipAmount?: number;
 }): Promise<any> {
   const data = await request("POST", "/api/orders", payload);
   // createOrder returns { order, items }

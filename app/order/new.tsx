@@ -124,7 +124,10 @@ export default function NewOrderScreen() {
     enabled: !!shopId && parsedItems.length > 0,
   });
   const quote = quoteQuery.data;
-  const grandTotal = quote?.total ?? itemsTotal;
+  // Optional rider tip (paise), added on top of the quoted total.
+  const [tipAmount, setTipAmount] = useState(0);
+  const TIP_OPTIONS = [0, 1000, 2000, 3000];
+  const grandTotal = (quote?.total ?? itemsTotal) + tipAmount;
 
   const orderMutation = useMutation({
     mutationFn: async () => {
@@ -142,6 +145,7 @@ export default function NewOrderScreen() {
         pickupDate: days[selectedDate].date,
         pickupSlot: selectedSlot || undefined,
         idempotencyKey: idempotencyKeyRef.current,
+        ...(tipAmount > 0 ? { tipAmount } : {}),
         ...(hasCoords ? { pickupLat: selectedAddr!.lat, pickupLng: selectedAddr!.lng } : {}),
       });
     },
@@ -300,6 +304,31 @@ export default function NewOrderScreen() {
                 {quote ? formatMoney(quote.platformFee) : "\u2026"}
               </Text>
             </View>
+            {tipAmount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.feeLabel}>Rider tip</Text>
+                <Text style={styles.feeValue}>{formatMoney(tipAmount)}</Text>
+              </View>
+            )}
+
+            <View style={styles.tipSection}>
+              <Text style={styles.tipTitle}>Tip your rider</Text>
+              <Text style={styles.tipHint}>100% goes to your rider.</Text>
+              <View style={styles.tipChips}>
+                {TIP_OPTIONS.map((amt) => (
+                  <Pressable
+                    key={amt}
+                    style={[styles.tipChip, tipAmount === amt && styles.tipChipActive]}
+                    onPress={() => setTipAmount(amt)}
+                  >
+                    <Text style={[styles.tipChipText, tipAmount === amt && styles.tipChipTextActive]}>
+                      {amt === 0 ? "No tip" : `\u20b9${amt / 100}`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
             <View style={styles.divider} />
             <View style={styles.summaryRow}>
               <Text style={styles.totalLabel}>Total to pay</Text>
@@ -442,6 +471,21 @@ const styles = StyleSheet.create({
   summaryQty: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.textMuted, marginRight: 12 },
   summaryPrice: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text, minWidth: 50, textAlign: "right" },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 8 },
+  tipSection: { marginTop: 10 },
+  tipTitle: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.text },
+  tipHint: { fontSize: 11, fontFamily: "NunitoSans_400Regular", color: Colors.textMuted, marginTop: 1, marginBottom: 8 },
+  tipChips: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  tipChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tipChipActive: { backgroundColor: Colors.primaryMuted, borderColor: Colors.primary },
+  tipChipText: { fontSize: 12.5, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
+  tipChipTextActive: { color: Colors.primary },
   totalLabel: { flex: 1, fontSize: 15, fontFamily: "NunitoSans_700Bold", color: Colors.text },
   feeLabel: { flex: 1, fontSize: 13, fontFamily: "NunitoSans_400Regular", color: Colors.textSecondary },
   feeValue: { fontSize: 13, fontFamily: "NunitoSans_600SemiBold", color: Colors.text },

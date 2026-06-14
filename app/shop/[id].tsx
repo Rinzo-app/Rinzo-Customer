@@ -62,9 +62,18 @@ export default function ShopDetailScreen() {
     } catch {}
   };
 
+  const minOrder = shop?.minOrder ?? 0;
+
   const handleProceed = () => {
     if (totalItems === 0) {
       Alert.alert("No items", "Please add at least one service to continue");
+      return;
+    }
+    if (minOrder > 0 && totalPrice < minOrder) {
+      Alert.alert(
+        "Minimum order not met",
+        `This shop has a minimum order of ₹${Math.round(minOrder / 100)}. Add ₹${Math.ceil((minOrder - totalPrice) / 100)} more to continue.`,
+      );
       return;
     }
     const items = services
@@ -145,6 +154,12 @@ export default function ShopDetailScreen() {
               <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
               <Text style={styles.metaLabel} numberOfLines={2}>{shop.address}</Text>
             </View>
+            {minOrder > 0 && (
+              <View style={styles.metaRow}>
+                <Ionicons name="cash-outline" size={13} color={Colors.textSecondary} />
+                <Text style={styles.metaLabel}>Minimum order ₹{Math.round(minOrder / 100)}</Text>
+              </View>
+            )}
             {/* Delivery fee is distance-priced — shown at checkout */}
           </View>
         </View>
