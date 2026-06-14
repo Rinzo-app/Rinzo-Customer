@@ -38,6 +38,9 @@ function RootLayoutNav() {
       <Stack.Screen name="order/new" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="order/[id]" options={{ animation: "slide_from_right" }} />
       <Stack.Screen name="address/manage" options={{ animation: "slide_from_bottom" }} />
+      <Stack.Screen name="favorites" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="support" options={{ animation: "slide_from_right" }} />
+      <Stack.Screen name="about" options={{ animation: "slide_from_right" }} />
     </Stack>
   );
 }

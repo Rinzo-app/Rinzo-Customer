@@ -148,19 +148,19 @@ export default function ProfileScreen() {
           <MenuItem
             icon="heart-outline"
             label={`Favorites${favsQuery.data ? ` (${favsQuery.data.length})` : ""}`}
-            onPress={() => {}}
+            onPress={() => router.push("/favorites" as any)}
             showDivider
           />
           <MenuItem
             icon="help-circle-outline"
             label="Help & Support"
-            onPress={() => {}}
+            onPress={() => router.push("/support" as any)}
             showDivider
           />
           <MenuItem
             icon="information-circle-outline"
             label="About Rinzo"
-            onPress={() => {}}
+            onPress={() => router.push("/about" as any)}
             isLast
           />
         </View>
