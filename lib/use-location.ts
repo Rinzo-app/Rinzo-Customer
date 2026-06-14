@@ -1,14 +1,20 @@
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
 
-const DEFAULT = { lat: 28.6139, lng: 77.209, address: "New Delhi, India" };
+export interface UserLocation {
+  lat: number;
+  lng: number;
+  address: string | null;
+}
 
+/**
+ * The device's current GPS location. Returns `null` until resolved, and
+ * stays `null` if permission is denied or the fix fails — we never
+ * fabricate a location (callers fall back to the saved delivery address
+ * instead of guessing a city).
+ */
 export function useUserLocation() {
-  const [location, setLocation] = useState<{
-    lat: number;
-    lng: number;
-    address: string | null;
-  }>(DEFAULT);
+  const [location, setLocation] = useState<UserLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [permissionDenied, setPermissionDenied] = useState(false);
 

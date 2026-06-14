@@ -23,7 +23,7 @@ import { fetchShops } from "@/lib/api";
 import { useUserLocation } from "@/lib/use-location";
 import { formatHoursRange } from "@/lib/time";
 import Colors from "@/constants/colors";
-import type { Shop } from "@/lib/types";
+import type { Shop, Address } from "@/lib/types";
 
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -124,6 +124,26 @@ export default function HomeScreen() {
 
   const shopsQuery = useQuery<Shop[]>({ queryKey: ["shops"], queryFn: fetchShops });
   const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
+  const addressesQuery = useQuery<Address[]>({ queryKey: ["/api/addresses"] });
+
+  // The customer's default saved address is the anchor for "shops near
+  // me" — it's where deliveries go. Live GPS refines it when available;
+  // we never fall back to a guessed city.
+  const defaultAddr = useMemo(() => {
+    const list = addressesQuery.data ?? [];
+    return (
+      list.find((a) => a.isDefault && a.lat != null && a.lng != null) ??
+      list.find((a) => a.lat != null && a.lng != null) ??
+      null
+    );
+  }, [addressesQuery.data]);
+
+  const effLoc = useMemo(() => {
+    if (location) return location;
+    if (defaultAddr)
+      return { lat: defaultAddr.lat, lng: defaultAddr.lng, address: defaultAddr.label };
+    return null;
+  }, [location, defaultAddr]);
 
   React.useEffect(() => {
     if (favsQuery.data && !favsLoaded) {
@@ -135,20 +155,21 @@ export default function HomeScreen() {
 
   const sortedShops = useMemo(() => {
     if (!shopsQuery.data) return [];
+    // Without any location (no GPS and no saved address) we can't judge
+    // distance — show everything rather than a misleading empty list.
+    if (!effLoc) {
+      return shopsQuery.data.map((shop) => ({ shop, distance: 0 }));
+    }
     const withDistance = shopsQuery.data
       .map((shop) => ({
         shop,
-        distance: getDistance(location.lat, location.lng, shop.lat, shop.lng),
+        distance: getDistance(effLoc.lat, effLoc.lng, shop.lat, shop.lng),
       }))
       .sort((a, b) => a.distance - b.distance);
-    // Only hide out-of-range shops when we trust the user's location.
-    // With permission denied we fall back to a default point and can't
-    // judge distance, so show everything rather than an empty list.
-    if (permissionDenied) return withDistance;
     return withDistance.filter(
       ({ shop, distance }) => distance <= (shop.serviceRadiusKm ?? 5),
     );
-  }, [shopsQuery.data, location.lat, location.lng, permissionDenied]);
+  }, [shopsQuery.data, effLoc]);
 
   const toggleFav = useCallback(async (shopId: string) => {
     try {
@@ -179,18 +200,20 @@ export default function HomeScreen() {
           <Text style={styles.greeting}>Hi {firstName}</Text>
           <Pressable style={styles.locationRow} onPress={() => router.push("/address/manage")}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.locationText} numberOfLines={1}>{location.address || "Locating..."}</Text>
+            <Text style={styles.locationText} numberOfLines={1}>
+              {effLoc?.address || (locationLoading ? "Locating…" : "Set delivery address")}
+            </Text>
             <Ionicons name="chevron-down" size={12} color={Colors.textMuted} />
           </Pressable>
         </View>
       </View>
 
-      {permissionDenied && (
-        <View style={styles.permBanner}>
+      {permissionDenied && !defaultAddr && (
+        <Pressable style={styles.permBanner} onPress={() => router.push("/address/manage")}>
           <Text style={styles.permBannerText}>
-            \ud83d\udccd Enable location for accurate distances
+            \ud83d\udccd Add a delivery address to see shops near you
           </Text>
-        </View>
+        </Pressable>
       )}
 
       {customer && !emailVerified && (
@@ -224,7 +247,11 @@ export default function HomeScreen() {
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="washing-machine" size={56} color={Colors.textMuted} />
           <Text style={styles.emptyTitle}>No shops nearby</Text>
-          <Text style={styles.emptyText}>We'll add more laundry shops soon</Text>
+          <Text style={styles.emptyText}>
+            {effLoc && (shopsQuery.data?.length ?? 0) > 0
+              ? "No shops deliver to your area yet — we're expanding soon."
+              : "We'll add more laundry shops soon"}
+          </Text>
         </View>
       ) : (
         <FlatList
