@@ -127,9 +127,15 @@ export default function ShopDetailScreen() {
           )}
           <View style={styles.shopHeaderInfo}>
             <View style={styles.ratingRow}>
-              <Ionicons name="star" size={15} color={Colors.star} />
-              <Text style={styles.ratingBig}>{shop.rating?.toFixed(1)}</Text>
-              <Text style={styles.ratingCountBig}>({shop.totalRatings})</Text>
+              {(shop.totalRatings ?? 0) > 0 ? (
+                <>
+                  <Ionicons name="star" size={15} color={Colors.star} />
+                  <Text style={styles.ratingBig}>{shop.rating?.toFixed(1)}</Text>
+                  <Text style={styles.ratingCountBig}>({shop.totalRatings})</Text>
+                </>
+              ) : (
+                <Text style={styles.ratingCountBig}>New shop · no ratings yet</Text>
+              )}
             </View>
             <View style={styles.metaRow}>
               <Ionicons name="time-outline" size={13} color={Colors.textSecondary} />

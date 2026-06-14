@@ -55,9 +55,15 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
         <View style={styles.shopInfo}>
           <Text style={styles.shopName} numberOfLines={1}>{shop.name}</Text>
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={13} color={Colors.star} />
-            <Text style={styles.ratingText}>{shop.rating?.toFixed(1)}</Text>
-            <Text style={styles.ratingCount}>({shop.totalRatings})</Text>
+            {(shop.totalRatings ?? 0) > 0 ? (
+              <>
+                <Ionicons name="star" size={13} color={Colors.star} />
+                <Text style={styles.ratingText}>{shop.rating?.toFixed(1)}</Text>
+                <Text style={styles.ratingCount}>({shop.totalRatings})</Text>
+              </>
+            ) : (
+              <Text style={styles.ratingCount}>New</Text>
+            )}
             <View style={styles.dot} />
             <Ionicons name="location-outline" size={12} color={Colors.textSecondary} />
             <Text style={styles.distanceText}>{distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`}</Text>

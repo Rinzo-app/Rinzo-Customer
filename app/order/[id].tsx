@@ -274,7 +274,18 @@ export default function OrderDetailScreen() {
         <View style={styles.detailSection}>
           <Text style={styles.detailHeading}>Pickup</Text>
           <View style={styles.detailCard}>
-            <DetailRow icon="calendar-outline" value={order.pickupDate} />
+            <DetailRow
+              icon="calendar-outline"
+              value={
+                order.pickupDate
+                  ? new Date(order.pickupDate + "T00:00:00").toLocaleDateString("en-IN", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })
+                  : null
+              }
+            />
             <DetailRow icon="time-outline" value={order.pickupSlot} />
             <DetailRow icon="cash-outline" value="Cash on Delivery" />
           </View>
@@ -582,7 +593,9 @@ export default function OrderDetailScreen() {
   );
 }
 
-function DetailRow({ icon, value }: { icon: string; value: string }) {
+function DetailRow({ icon, value }: { icon: string; value?: string | null }) {
+  // Skip rows with no value rather than showing an empty line.
+  if (!value || !String(value).trim()) return null;
   return (
     <View style={styles.detailRow}>
       <View style={styles.detailIconWrap}>
