@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import * as WebBrowser from "expo-web-browser";
 import { fetchOrder, cancelOrder, approveAdjustment, startPayment, checkPaymentStatus, submitReview, createDispute, DISPUTE_CATEGORIES } from "@/lib/api";
+import { RiderMap } from "@/components/rider-map";
 import { formatMoney } from "@/lib/money";
 import { queryClient } from "@/lib/query-client";
 import Colors from "@/constants/colors";
@@ -264,6 +265,18 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
+        {order.riderLat != null && order.riderLng != null &&
+          order.customerLat != null && order.customerLng != null && (
+          <View style={styles.mapSection}>
+            <Text style={styles.detailHeading}>Live location</Text>
+            <RiderMap
+              rider={{ lat: order.riderLat, lng: order.riderLng }}
+              dest={{ lat: order.customerLat, lng: order.customerLng }}
+            />
+            <Text style={styles.mapHint}>Rider's position updates as you watch.</Text>
+          </View>
+        )}
+
         {order.status === "delivered" && order.deliveryProofUrl && (
           <View style={styles.detailSection}>
             <Text style={styles.detailHeading}>Proof of Delivery</Text>
@@ -274,18 +287,7 @@ export default function OrderDetailScreen() {
         <View style={styles.detailSection}>
           <Text style={styles.detailHeading}>Pickup</Text>
           <View style={styles.detailCard}>
-            <DetailRow
-              icon="calendar-outline"
-              value={
-                order.pickupDate
-                  ? new Date(order.pickupDate + "T00:00:00").toLocaleDateString("en-IN", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })
-                  : null
-              }
-            />
+            <DetailRow icon="calendar-outline" value={order.pickupDate} />
             <DetailRow icon="time-outline" value={order.pickupSlot} />
             <DetailRow icon="cash-outline" value="Cash on Delivery" />
           </View>
@@ -707,6 +709,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceElevated,
   },
   detailSection: { marginBottom: 16 },
+  mapSection: { marginBottom: 16 },
+  mapHint: {
+    fontSize: 12,
+    fontFamily: "NunitoSans_400Regular",
+    color: Colors.textMuted,
+    marginTop: 6,
+  },
   detailHeading: {
     fontSize: 13,
     fontFamily: "NunitoSans_700Bold",
