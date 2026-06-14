@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,7 +21,7 @@ import Colors from "@/constants/colors";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { login, signUp } = useAuth();
+  const { login, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,6 +36,27 @@ export default function LoginScreen() {
     password.length >= 6 &&
     (!isSignup || name.trim().length > 0) &&
     !loading;
+
+  const handleForgotPassword = async () => {
+    const e = email.trim();
+    if (e.length < 4 || !e.includes("@")) {
+      setError("Enter your email above, then tap “Forgot password?”");
+      return;
+    }
+    try {
+      await resetPassword(e);
+    } catch (err: any) {
+      // Don't reveal whether an account exists — always confirm.
+      if (err?.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
+        return;
+      }
+    }
+    Alert.alert(
+      "Check your email",
+      `If an account exists for ${e}, we've sent a link to reset your password. Check spam too.`,
+    );
+  };
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -166,6 +188,12 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
+          {!isSignup && (
+            <Pressable onPress={handleForgotPassword} disabled={loading} hitSlop={8}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </Pressable>
+          )}
+
           <Pressable
             onPress={() => { setMode(isSignup ? "signin" : "signup"); setError(""); }}
             disabled={loading}
@@ -295,6 +323,13 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     textAlign: "center",
     marginTop: 10,
+  },
+  forgotText: {
+    fontSize: 13,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginTop: 8,
   },
   footerText: {
     fontSize: 12,

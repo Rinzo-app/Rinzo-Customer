@@ -17,6 +17,7 @@ import {
   signOut,
   updateProfile,
   sendEmailVerification,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   isFirebaseConfigured,
@@ -46,6 +47,8 @@ interface AuthContextValue {
   userStatus: UserStatus | null;
   login: (email: string, password: string) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
+  /** Send a Firebase password-reset link to the given email. */
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   updateName: (name: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -270,6 +273,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // ── Password reset ─────────────────────────────────────
+  async function resetPassword(email: string) {
+    await firebaseReady;
+    const auth = getFirebaseAuth();
+    if (!auth) throw new Error("Firebase is not configured");
+    await sendPasswordResetEmail(auth, email);
+  }
+
   // ── Logout ─────────────────────────────────────────────
   async function logout() {
     try {
@@ -340,6 +351,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userStatus,
       login,
       signUp,
+      resetPassword,
       logout,
       updateName,
       refreshProfile,
