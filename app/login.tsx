@@ -24,6 +24,7 @@ export default function LoginScreen() {
   const { login, signUp, resetPassword } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,10 +32,12 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   const isSignup = mode === "signup";
+  // Indian mobile: 10 digits starting 6-9, after stripping +91/0 and spaces.
+  const phoneValid = /^(\+91|0)?[6-9]\d{9}$/.test(phone.replace(/[\s-]/g, ""));
   const canSubmit =
     email.trim().length > 3 &&
     password.length >= 6 &&
-    (!isSignup || name.trim().length > 0) &&
+    (!isSignup || (name.trim().length > 0 && phoneValid)) &&
     !loading;
 
   const handleForgotPassword = async () => {
@@ -67,7 +70,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       if (isSignup) {
-        await signUp(name.trim(), email.trim(), password);
+        await signUp(name.trim(), phone.trim(), email.trim(), password);
       } else {
         await login(email.trim(), password);
       }
@@ -130,6 +133,22 @@ export default function LoginScreen() {
                 value={name}
                 onChangeText={(t) => { setName(t); setError(""); }}
                 autoCapitalize="words"
+                editable={!loading}
+              />
+            </View>
+          )}
+
+          {isSignup && (
+            <View style={styles.inputWrapper}>
+              <Ionicons name="call-outline" size={20} color={Colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mobile number"
+                placeholderTextColor={Colors.textMuted}
+                value={phone}
+                onChangeText={(t) => { setPhone(t); setError(""); }}
+                keyboardType="phone-pad"
+                maxLength={13}
                 editable={!loading}
               />
             </View>

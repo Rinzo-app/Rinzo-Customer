@@ -46,11 +46,13 @@ interface AuthContextValue {
   token: string | null;
   userStatus: UserStatus | null;
   login: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signUp: (name: string, phone: string, email: string, password: string) => Promise<void>;
   /** Send a Firebase password-reset link to the given email. */
   resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   updateName: (name: string) => Promise<void>;
+  /** Update the backend profile (name and/or contact number). */
+  updateProfile: (changes: { name?: string; phone?: string }) => Promise<void>;
   refreshProfile: () => Promise<void>;
   /** Whether the signed-in user's email has been verified. */
   emailVerified: boolean;
@@ -67,6 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
+  // Backend-sourced profile (name/phone/email). Firebase only reliably
+  // carries email + displayName; phoneNumber is empty for email/password
+  // accounts, so the contact number must come from the backend.
+  const [profile, setProfile] = useState<{
+    name: string;
+    phone: string;
+    email: string | null;
+  } | null>(null);
 
   const appState = useRef(AppState.currentState);
   // True while signUp() runs. createUserWithEmailAndPassword fires
@@ -77,7 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Fetch user status from backend ─────────────────────
   const fetchUserStatus = useCallback(async () => {
     try {
-      const data = await request<{ status?: string; role?: string }>("GET", "/api/auth/me");
+      const data = await request<{
+        status?: string;
+        role?: string;
+        name?: string;
+        phone?: string;
+        email?: string | null;
+      }>("GET", "/api/auth/me");
 
       // One account = one role. This app is for customers only —
       // shop owners and riders have their own apps.
@@ -92,9 +108,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setFirebaseUser(null);
         setToken(null);
         setUserStatus(null);
+        setProfile(null);
         return null;
       }
 
+      setProfile({
+        name: data.name ?? "",
+        phone: data.phone ?? "",
+        email: data.email ?? null,
+      });
       const status = (data.status as UserStatus) || "ACTIVE";
       setUserStatus(status);
       return status;
@@ -180,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Register with the unified backend (409 = exists) ───
   async function registerWithBackend(
     idToken: string,
-    payload: { name: string; email: string },
+    payload: { name: string; phone: string; email: string },
   ): Promise<boolean> {
     try {
       const res = await fetch(
@@ -230,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // ── Email / password sign-up ────────────────────────────
-  async function signUp(name: string, email: string, password: string) {
+  async function signUp(name: string, phone: string, email: string, password: string) {
     await firebaseReady;
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase is not configured");
@@ -243,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendEmailVerification(cred.user).catch(() => {});
 
       const idToken = await cred.user.getIdToken();
-      const registered = await registerWithBackend(idToken, { name, email });
+      const registered = await registerWithBackend(idToken, { name, phone, email });
       if (!registered) {
         // Roll back the orphaned Firebase account so the user can retry
         await cred.user.delete().catch(() => {});
@@ -295,6 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setFirebaseUser(null);
     setToken(null);
     setUserStatus(null);
+    setProfile(null);
     queryClient.clear();
   }
 
@@ -320,25 +343,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setFirebaseUser({ ...auth.currentUser });
   }
 
-  // ── Update display name ────────────────────────────────
-  async function updateName(name: string) {
+  // ── Update profile (name and/or phone) on the backend ──
+  async function saveProfile(changes: { name?: string; phone?: string }) {
     await firebaseReady;
     const auth = getFirebaseAuth();
     if (!auth?.currentUser) throw new Error("Not authenticated");
 
-    await updateProfile(auth.currentUser, { displayName: name });
+    const updated = await request<{ name?: string; phone?: string; email?: string | null }>(
+      "PATCH",
+      "/api/auth/me",
+      changes,
+    );
 
-    // Force re-render with updated displayName
+    // Keep the Firebase displayName in sync so it matches everywhere.
+    if (changes.name !== undefined) {
+      await updateProfile(auth.currentUser, { displayName: changes.name }).catch(() => {});
+    }
+
+    setProfile({
+      name: updated.name ?? changes.name ?? profile?.name ?? "",
+      phone: updated.phone ?? changes.phone ?? profile?.phone ?? "",
+      email: updated.email ?? profile?.email ?? null,
+    });
     setFirebaseUser({ ...auth.currentUser });
   }
 
-  // ── Derive customer-like object from Firebase user ─────
+  /** Back-compat helper: update just the display name. */
+  async function updateName(name: string) {
+    await saveProfile({ name });
+  }
+
+  // ── Customer object — name/phone from the backend profile,
+  //    falling back to Firebase where the backend hasn't loaded yet ─
   const customer: CustomerInfo | null = firebaseUser
     ? {
         id: firebaseUser.uid,
-        name: firebaseUser.displayName || "",
-        phone: firebaseUser.phoneNumber || "",
-        email: firebaseUser.email || null,
+        name: profile?.name || firebaseUser.displayName || "",
+        phone: profile?.phone || "",
+        email: profile?.email || firebaseUser.email || null,
       }
     : null;
 
@@ -354,12 +396,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resetPassword,
       logout,
       updateName,
+      updateProfile: saveProfile,
       refreshProfile,
       emailVerified: !!firebaseUser?.emailVerified,
       resendVerification,
       reloadEmailStatus,
     }),
-    [isLoading, firebaseUser, token, userStatus, refreshProfile],
+    [isLoading, firebaseUser, profile, token, userStatus, refreshProfile],
   );
 
   return (

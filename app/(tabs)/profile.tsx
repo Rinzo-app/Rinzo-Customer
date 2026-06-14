@@ -37,9 +37,11 @@ function disputeStatusTextColor(status: string) {
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { customer, logout, updateName } = useAuth();
+  const { customer, logout, updateName, updateProfile } = useAuth();
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(customer?.name || "");
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phone, setPhone] = useState(customer?.phone || "");
   const [saving, setSaving] = useState(false);
 
   const favsQuery = useQuery<any[]>({ queryKey: ["/api/favorites"] });
@@ -58,6 +60,24 @@ export default function ProfileScreen() {
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Alert.alert("Error", "Failed to update name");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    const cleaned = phone.replace(/[\s-]/g, "");
+    if (!/^(\+91|0)?[6-9]\d{9}$/.test(cleaned)) {
+      Alert.alert("Invalid number", "Enter a valid 10-digit mobile number.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfile({ phone: phone.trim() });
+      setEditingPhone(false);
+      if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("Error", "Failed to update phone number");
     } finally {
       setSaving(false);
     }
@@ -136,7 +156,31 @@ export default function ProfileScreen() {
               <Ionicons name="pencil-outline" size={14} color={Colors.textMuted} />
             </Pressable>
           )}
-          <Text style={styles.profilePhone}>{customer?.phone}</Text>
+          {editingPhone ? (
+            <View style={styles.nameEditRow}>
+              <TextInput
+                style={styles.nameInput}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Mobile number"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="phone-pad"
+                maxLength={13}
+                autoFocus
+              />
+              <Pressable style={styles.saveBtn} onPress={handleSavePhone} disabled={saving}>
+                <Ionicons name="checkmark" size={18} color={Colors.textInverse} />
+              </Pressable>
+              <Pressable style={styles.cancelBtn} onPress={() => { setEditingPhone(false); setPhone(customer?.phone || ""); }}>
+                <Ionicons name="close" size={18} color={Colors.textSecondary} />
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable style={styles.nameRow} onPress={() => { setPhone(customer?.phone || ""); setEditingPhone(true); }}>
+              <Text style={styles.profilePhone}>{customer?.phone || "Add your mobile number"}</Text>
+              <Ionicons name="pencil-outline" size={13} color={Colors.textMuted} />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.section}>
