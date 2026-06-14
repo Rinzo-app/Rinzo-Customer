@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/query-client";
 import { fetchShops } from "@/lib/api";
 import { useUserLocation } from "@/lib/use-location";
+import { formatHoursRange } from "@/lib/time";
 import Colors from "@/constants/colors";
 import type { Shop } from "@/lib/types";
 
@@ -70,7 +71,7 @@ function ShopCard({ shop, distance, isFav, onToggleFav }: {
       <View style={styles.shopMeta}>
         <View style={styles.metaChip}>
           <Ionicons name="time-outline" size={12} color={Colors.textSecondary} />
-          <Text style={styles.metaText}>{shop.openTime} - {shop.closeTime}</Text>
+          <Text style={styles.metaText}>{formatHoursRange(shop.openTime, shop.closeTime)}</Text>
         </View>
         {/* Delivery is distance-priced per order \u2014 the exact fee is
             shown in the checkout breakdown, so no misleading

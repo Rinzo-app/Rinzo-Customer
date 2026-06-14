@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import { apiRequest } from "@/lib/query-client";
 import { useCart } from "@/lib/cart-context";
 import Colors from "@/constants/colors";
+import { formatHoursRange } from "@/lib/time";
 import type { Shop, Service } from "@/lib/types";
 
 
@@ -132,7 +133,7 @@ export default function ShopDetailScreen() {
             </View>
             <View style={styles.metaRow}>
               <Ionicons name="time-outline" size={13} color={Colors.textSecondary} />
-              <Text style={styles.metaLabel}>{shop.openTime} - {shop.closeTime}</Text>
+              <Text style={styles.metaLabel}>{formatHoursRange(shop.openTime, shop.closeTime)}</Text>
             </View>
             <View style={styles.metaRow}>
               <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
