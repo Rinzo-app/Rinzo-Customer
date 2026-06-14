@@ -11,6 +11,7 @@ import {
   Image,
   AppState,
   Alert,
+  TextInput,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -101,6 +102,8 @@ export default function HomeScreen() {
   const [favSet, setFavSet] = useState<Set<string>>(new Set());
   const [favsLoaded, setFavsLoaded] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
 
   // Refresh verification status on mount + whenever the app returns to
   // the foreground (the user verifies via a browser link, then comes back).
@@ -161,21 +164,35 @@ export default function HomeScreen() {
 
   const sortedShops = useMemo(() => {
     if (!shopsQuery.data) return [];
+    const q = search.trim().toLowerCase();
+    const matchesSearch = (shop: Shop) =>
+      !q ||
+      shop.name.toLowerCase().includes(q) ||
+      (shop.address ?? "").toLowerCase().includes(q);
+
     // Without any location (no GPS and no saved address) we can't judge
     // distance — show everything rather than a misleading empty list.
-    if (!effLoc) {
-      return shopsQuery.data.map((shop) => ({ shop, distance: 0 }));
-    }
-    const withDistance = shopsQuery.data
-      .map((shop) => ({
-        shop,
-        distance: getDistance(effLoc.lat, effLoc.lng, shop.lat, shop.lng),
-      }))
-      .sort((a, b) => a.distance - b.distance);
-    return withDistance.filter(
-      ({ shop, distance }) => distance <= (shop.serviceRadiusKm ?? 5),
-    );
-  }, [shopsQuery.data, effLoc]);
+    let list = effLoc
+      ? shopsQuery.data
+          .map((shop) => ({
+            shop,
+            distance: getDistance(effLoc.lat, effLoc.lng, shop.lat, shop.lng),
+          }))
+          .filter(({ shop, distance }) => distance <= (shop.serviceRadiusKm ?? 5))
+      : shopsQuery.data.map((shop) => ({ shop, distance: 0 }));
+
+    list = list.filter(({ shop }) => matchesSearch(shop));
+
+    list.sort((a, b) => {
+      if (sortBy === "rating") {
+        const rb = (b.shop.rating ?? 0) - (a.shop.rating ?? 0);
+        if (rb !== 0) return rb;
+        return (b.shop.totalRatings ?? 0) - (a.shop.totalRatings ?? 0);
+      }
+      return a.distance - b.distance;
+    });
+    return list;
+  }, [shopsQuery.data, effLoc, search, sortBy]);
 
   const toggleFav = useCallback(async (shopId: string) => {
     try {
@@ -245,6 +262,41 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {(shopsQuery.data?.length ?? 0) > 0 && (
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={16} color={Colors.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search shops"
+              placeholderTextColor={Colors.textMuted}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => setSearch("")} hitSlop={10}>
+                <Ionicons name="close-circle" size={16} color={Colors.textMuted} />
+              </Pressable>
+            )}
+          </View>
+          <View style={styles.sortRow}>
+            <Pressable
+              style={[styles.sortChip, sortBy === "distance" && styles.sortChipActive]}
+              onPress={() => setSortBy("distance")}
+            >
+              <Text style={[styles.sortChipText, sortBy === "distance" && styles.sortChipTextActive]}>Nearest</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.sortChip, sortBy === "rating" && styles.sortChipActive]}
+              onPress={() => setSortBy("rating")}
+            >
+              <Text style={[styles.sortChipText, sortBy === "rating" && styles.sortChipTextActive]}>Top rated</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       {shopsQuery.isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -252,9 +304,13 @@ export default function HomeScreen() {
       ) : sortedShops.length === 0 ? (
         <View style={styles.emptyContainer}>
           <MaterialCommunityIcons name="washing-machine" size={56} color={Colors.textMuted} />
-          <Text style={styles.emptyTitle}>No shops nearby</Text>
+          <Text style={styles.emptyTitle}>
+            {search.trim() ? "No matches" : "No shops nearby"}
+          </Text>
           <Text style={styles.emptyText}>
-            {effLoc && (shopsQuery.data?.length ?? 0) > 0
+            {search.trim()
+              ? `No shops match "${search.trim()}".`
+              : effLoc && (shopsQuery.data?.length ?? 0) > 0
               ? "No shops deliver to your area yet — we're expanding soon."
               : "We'll add more laundry shops soon"}
           </Text>
@@ -274,7 +330,9 @@ export default function HomeScreen() {
           }
           ListHeaderComponent={
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nearby</Text>
+              <Text style={styles.sectionTitle}>
+                {search.trim() ? "Results" : sortBy === "rating" ? "Top rated" : "Nearby"}
+              </Text>
               <Text style={styles.sectionCount}>{sortedShops.length} shops</Text>
             </View>
           }
@@ -352,6 +410,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   verifyBtnText: { fontSize: 13, fontFamily: "NunitoSans_700Bold", color: Colors.textInverse },
+  searchWrap: { paddingHorizontal: 20, paddingBottom: 12, gap: 10 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === "ios" ? 10 : 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "NunitoSans_600SemiBold",
+    color: Colors.text,
+    padding: 0,
+  },
+  sortRow: { flexDirection: "row", gap: 8 },
+  sortChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sortChipActive: { backgroundColor: Colors.primaryMuted, borderColor: Colors.primary },
+  sortChipText: { fontSize: 12.5, fontFamily: "NunitoSans_600SemiBold", color: Colors.textSecondary },
+  sortChipTextActive: { color: Colors.primary },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 8, padding: 40 },
   emptyTitle: { fontSize: 18, fontFamily: "NunitoSans_700Bold", color: Colors.text },
