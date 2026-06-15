@@ -88,8 +88,9 @@ export async function submitReview(
   id: string,
   rating: number,
   comment?: string,
+  riderRating?: number,
 ): Promise<any> {
-  return request("POST", `/api/orders/${id}/review`, { rating, comment });
+  return request("POST", `/api/orders/${id}/review`, { rating, comment, riderRating });
 }
 
 /** GET /api/shops/:id/reviews — recent reviews for a shop */

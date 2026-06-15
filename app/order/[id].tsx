@@ -50,6 +50,7 @@ export default function OrderDetailScreen() {
 
   // ── Rating state ─────────────────────────────────────
   const [ratingStars, setRatingStars] = useState(0);
+  const [riderStars, setRiderStars] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
 
   const orderQuery = useQuery<any>({
@@ -85,7 +86,8 @@ export default function OrderDetailScreen() {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: () => submitReview(id!, ratingStars, ratingComment.trim() || undefined),
+    mutationFn: () =>
+      submitReview(id!, ratingStars, ratingComment.trim() || undefined, riderStars || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer-orders"] });
       orderQuery.refetch();
@@ -452,6 +454,22 @@ export default function OrderDetailScreen() {
                   </Pressable>
                 ))}
               </View>
+              {order.riderName && (
+                <>
+                  <Text style={[styles.rateSub, { marginTop: 14 }]}>Rate your rider, {order.riderName}</Text>
+                  <View style={styles.starRow}>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Pressable key={n} onPress={() => setRiderStars(n)} hitSlop={6}>
+                        <Ionicons
+                          name={n <= riderStars ? "star" : "star-outline"}
+                          size={28}
+                          color={n <= riderStars ? "#FFB020" : Colors.textMuted}
+                        />
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              )}
               <TextInput
                 style={styles.rateInput}
                 placeholder="Add a comment (optional)"
