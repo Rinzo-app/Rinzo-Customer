@@ -67,7 +67,15 @@ export async function quoteOrder(payload: {
   items: { serviceId: string; quantity: number }[];
   pickupLat?: number;
   pickupLng?: number;
-}): Promise<{ itemsTotal: number; deliveryFee: number; platformFee: number; total: number }> {
+}): Promise<{
+  itemsTotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  total: number;
+  membershipDiscount?: number;
+  membershipFreeDelivery?: boolean;
+  membershipPlan?: string | null;
+}> {
   return request("POST", "/api/orders/quote", payload);
 }
 
@@ -81,6 +89,36 @@ export async function checkPaymentStatus(
   id: string,
 ): Promise<{ status: string; method: string }> {
   return request("GET", `/api/orders/${id}/payment-status`);
+}
+
+// ── Memberships ──────────────────────────────────────────
+
+export interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  durationDays: number;
+  freeDelivery: boolean;
+  discountBps: number;
+}
+
+export interface MyMembership {
+  planName: string;
+  freeDelivery: boolean;
+  discountBps: number;
+  expiresAt: string;
+}
+
+export async function fetchPlans(): Promise<Plan[]> {
+  return request("GET", "/api/memberships/plans");
+}
+
+export async function fetchMyMembership(): Promise<MyMembership | null> {
+  return request("GET", "/api/memberships/me");
+}
+
+export async function purchaseMembership(planId: string): Promise<any> {
+  return request("POST", "/api/memberships/purchase", { planId });
 }
 
 /** POST /api/orders/:id/review — rate a delivered order's shop (1–5) */

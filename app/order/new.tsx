@@ -295,9 +295,17 @@ export default function NewOrderScreen() {
             <View style={styles.summaryRow}>
               <Text style={styles.feeLabel}>Pickup & delivery</Text>
               <Text style={styles.feeValue}>
-                {quote ? formatMoney(quote.deliveryFee) : "\u2026"}
+                {!quote ? "\u2026" : quote.membershipFreeDelivery ? "Free (member)" : formatMoney(quote.deliveryFee)}
               </Text>
             </View>
+            {quote && (quote.membershipDiscount ?? 0) > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={styles.feeLabel}>Member discount</Text>
+                <Text style={[styles.feeValue, { color: Colors.success }]}>
+                  \u2212{formatMoney(quote.membershipDiscount ?? 0)}
+                </Text>
+              </View>
+            )}
             <View style={styles.summaryRow}>
               <Text style={styles.feeLabel}>Platform fee</Text>
               <Text style={styles.feeValue}>

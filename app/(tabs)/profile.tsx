@@ -185,6 +185,12 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <MenuItem
+            icon="star-outline"
+            label="Rinzo Plus membership"
+            onPress={() => router.push("/membership" as any)}
+            showDivider
+          />
+          <MenuItem
             icon="location-outline"
             label="Saved Addresses"
             onPress={() => router.push("/address/manage")}
